@@ -1,0 +1,919 @@
+{
+ "name": "SF-01 Shorts Factory (script -> voice -> clips -> render -> upload)",
+ "nodes": [
+  {
+   "name": "Run",
+   "type": "n8n-nodes-base.manualTrigger",
+   "typeVersion": 1,
+   "position": [
+    0,
+    300
+   ],
+   "parameters": {}
+  },
+  {
+   "name": "Topic",
+   "type": "n8n-nodes-base.set",
+   "typeVersion": 3.4,
+   "position": [
+    260,
+    300
+   ],
+   "parameters": {
+    "assignments": {
+     "assignments": [
+      {
+       "id": "t1",
+       "name": "topic",
+       "type": "string",
+       "value": "Why small businesses lose leads after 5pm, and the auto-reply fix"
+      },
+      {
+       "id": "t2",
+       "name": "system_prompt",
+       "type": "string",
+       "value": "You write 30-40 second YouTube Shorts scripts. Return ONLY JSON:\n{\"title\": \"...(<=60 chars, hooky, no clickbait lies)\",\n \"description\": \"...(2 lines + 3 hashtags)\",\n \"tags\": [\"..5-8..\"],\n \"scenes\": [ {\"voice\": \"one or two spoken sentences, natural, no emojis\", \"image_prompt\": \"vivid photorealistic vertical 9:16 image prompt, no text in image, no people faces\"} ] }\nRules: exactly 6 scenes. Scene 1 = a hook that names a concrete pain or number. Scene 6 = one-line takeaway + \"follow for the next one\". Total spoken words 80-100. Plain English, no hype words (revolutionary, game-changing, unlock). NEVER invent statistics or percentages; if the topic gives no number, say \"most\" or \"many\". ASCII characters only: plain hyphens, plain quotes, no special spaces."
+      }
+     ]
+    },
+    "options": {}
+   }
+  },
+  {
+   "name": "Build Groq request",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    520,
+    300
+   ],
+   "parameters": {
+    "jsCode": "const topic = $json.topic;\nconst system = $json.system_prompt;\nconst body = {\n  model: 'openai/gpt-oss-120b',\n  temperature: 0.7,\n  response_format: { type: 'json_object' },\n  messages: [\n    { role: 'system', content: system },\n    { role: 'user', content: 'Topic: ' + topic }\n  ]\n};\nreturn [{ json: { body: JSON.stringify(body), topic } }];",
+    "mode": "runOnceForAllItems"
+   }
+  },
+  {
+   "name": "Groq: write script",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    780,
+    300
+   ],
+   "parameters": {
+    "method": "POST",
+    "url": "https://api.groq.com/openai/v1/chat/completions",
+    "authentication": "genericCredentialType",
+    "genericAuthType": "httpHeaderAuth",
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={{ $json.body }}",
+    "options": {}
+   },
+   "credentials": {
+    "httpHeaderAuth": {
+     "id": "REPLACE_ME",
+     "name": "Your httpHeaderAuth"
+    }
+   }
+  },
+  {
+   "name": "Parse script",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    1040,
+    300
+   ],
+   "parameters": {
+    "jsCode": "// Groq -> one item per scene, plus run-wide meta on every item\nconst raw = $json.choices[0].message.content;\nconst plan = JSON.parse(raw);\nconst ascii = s => String(s).replace(/[\\u2018\\u2019]/g, \"'\").replace(/[\\u201C\\u201D]/g, '\"').replace(/[\\u2010-\\u2015]/g, '-').replace(/[\\u00A0\\u202F\\u2009]/g, ' ').replace(/[^\\x20-\\x7E]/g, '');\nconst runId = Date.now().toString(36);\nconst out = [];\nplan.scenes.forEach((s, i) => {\n  const prompt = ascii(s.image_prompt) + ', vertical 9:16, cinematic, no text, no watermark';\n  out.push({ json: {\n    run_id: runId,\n    index: i,\n    voice: ascii(s.voice),\n    image_prompt: prompt,\n    image_url: 'https://image.pollinations.ai/prompt/' + encodeURIComponent(prompt) + '?width=576&height=1024&nologo=true&nofeed=true&seed=' + (i + 11),\n    title: ascii(plan.title), description: ascii(plan.description), tags: plan.tags, scene_count: plan.scenes.length\n  }});\n});\nreturn out;",
+    "mode": "runOnceForAllItems"
+   }
+  },
+  {
+   "name": "ElevenLabs: voice",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    1300,
+    300
+   ],
+   "parameters": {
+    "method": "POST",
+    "url": "https://api.elevenlabs.io/v1/text-to-speech/onwK4e9ZLuTAKqWW03F9?output_format=mp3_44100_128",
+    "authentication": "genericCredentialType",
+    "genericAuthType": "httpHeaderAuth",
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={{ JSON.stringify({ text: $json.voice, model_id: 'eleven_multilingual_v2', voice_settings: { stability: 0.5, similarity_boost: 0.75 } } ) }}",
+    "options": {
+     "batching": {
+      "batch": {
+       "batchSize": 1,
+       "batchInterval": 800
+      }
+     },
+     "response": {
+      "response": {
+       "responseFormat": "file",
+       "outputPropertyName": "data"
+      }
+     }
+    }
+   },
+   "credentials": {
+    "httpHeaderAuth": {
+     "id": "REPLACE_ME",
+     "name": "Your httpHeaderAuth"
+    }
+   }
+  },
+  {
+   "name": "Upload VO to MinIO",
+   "type": "n8n-nodes-base.s3",
+   "typeVersion": 1,
+   "position": [
+    1560,
+    300
+   ],
+   "parameters": {
+    "operation": "upload",
+    "bucketName": "nca",
+    "fileName": "={{ 'sf/' + $('Parse script').item.json.run_id + '-' + $('Parse script').item.json.index + '.mp3' }}",
+    "binaryData": true,
+    "binaryPropertyName": "data",
+    "additionalFields": {},
+    "tagsUi": {}
+   },
+   "credentials": {
+    "s3": {
+     "id": "REPLACE_ME",
+     "name": "Your s3"
+    }
+   }
+  },
+  {
+   "name": "NCA: VO duration",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    1820,
+    300
+   ],
+   "parameters": {
+    "method": "POST",
+    "url": "https://YOUR-NCA-HOST/v1/media/metadata",
+    "authentication": "genericCredentialType",
+    "genericAuthType": "httpHeaderAuth",
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={{ JSON.stringify({ media_url: 'https://YOUR-NCA-HOST/nca/sf/' + $('Parse script').item.json.run_id + '-' + $('Parse script').item.json.index + '.mp3' } ) }}",
+    "options": {
+     "batching": {
+      "batch": {
+       "batchSize": 1,
+       "batchInterval": 800
+      }
+     }
+    }
+   },
+   "credentials": {
+    "httpHeaderAuth": {
+     "id": "REPLACE_ME",
+     "name": "Your httpHeaderAuth"
+    }
+   }
+  },
+  {
+   "name": "Scene plan",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    2080,
+    300
+   ],
+   "parameters": {
+    "jsCode": "// pair each VO duration back with its scene; clip = VO + 0.4s breathing room\nconst scenes = $('Parse script').all().map(x => x.json);\nreturn $input.all().map((item, i) => {\n  const s = scenes[i];\n  const dur = Number(item.json.response && item.json.response.duration) || 3;\n  const length = Math.ceil((dur + 0.4) * 10) / 10;\n  const base = 'https://YOUR-NCA-HOST/nca/sf/' + s.run_id + '-' + s.index;\n  return { json: Object.assign({}, s, { vo_seconds: dur, length, audio_url: base + '.mp3', hosted_image_url: base + '.jpg' }) };\n});",
+    "mode": "runOnceForAllItems"
+   }
+  },
+  {
+   "name": "Loop over scenes",
+   "type": "n8n-nodes-base.splitInBatches",
+   "typeVersion": 3,
+   "position": [
+    2340,
+    300
+   ],
+   "parameters": {
+    "batchSize": 1,
+    "options": {
+     "reset": false
+    }
+   }
+  },
+  {
+   "name": "Pollinations: image",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    2600,
+    300
+   ],
+   "retryOnFail": true,
+   "maxTries": 3,
+   "waitBetweenTries": 5000,
+   "onError": "continueRegularOutput",
+   "alwaysOutputData": true,
+   "parameters": {
+    "method": "GET",
+    "url": "={{ $('Loop over scenes').item.json.image_url }}",
+    "options": {
+     "timeout": 180000,
+     "response": {
+      "response": {
+       "responseFormat": "file",
+       "outputPropertyName": "data"
+      }
+     }
+    }
+   }
+  },
+  {
+   "name": "Upload image to MinIO",
+   "type": "n8n-nodes-base.s3",
+   "typeVersion": 1,
+   "position": [
+    2860,
+    300
+   ],
+   "parameters": {
+    "operation": "upload",
+    "bucketName": "nca",
+    "fileName": "={{ 'sf/' + $('Loop over scenes').item.json.run_id + '-' + $('Loop over scenes').item.json.index + '.jpg' }}",
+    "binaryData": true,
+    "binaryPropertyName": "data",
+    "additionalFields": {},
+    "tagsUi": {}
+   },
+   "credentials": {
+    "s3": {
+     "id": "REPLACE_ME",
+     "name": "Your s3"
+    }
+   }
+  },
+  {
+   "name": "Breathe",
+   "type": "n8n-nodes-base.wait",
+   "typeVersion": 1.1,
+   "position": [
+    3120,
+    300
+   ],
+   "parameters": {
+    "amount": 20,
+    "unit": "seconds"
+   }
+  },
+  {
+   "name": "Got image?",
+   "type": "n8n-nodes-base.if",
+   "typeVersion": 2.2,
+   "position": [
+    3380,
+    300
+   ],
+   "parameters": {
+    "conditions": {
+     "options": {
+      "caseSensitive": true,
+      "version": 2,
+      "typeValidation": "loose"
+     },
+     "combinator": "and",
+     "conditions": [
+      {
+       "id": "c1",
+       "operator": {
+        "type": "boolean",
+        "operation": "true",
+        "singleValue": true
+       },
+       "leftValue": "={{ $binary.data !== undefined }}",
+       "rightValue": ""
+      }
+     ]
+    },
+    "options": {}
+   }
+  },
+  {
+   "name": "Images ready",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    3640,
+    300
+   ],
+   "parameters": {
+    "jsCode": "// loop finished -> re-emit every scene (hosted image urls are deterministic)\nreturn $('Scene plan').all().map(x => ({ json: x.json }));",
+    "mode": "runOnceForAllItems"
+   }
+  },
+  {
+   "name": "NCA: image to clip",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    3900,
+    300
+   ],
+   "parameters": {
+    "method": "POST",
+    "url": "https://YOUR-NCA-HOST/v1/image/convert/video",
+    "authentication": "genericCredentialType",
+    "genericAuthType": "httpHeaderAuth",
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={{ JSON.stringify({ image_url: $('Scene plan').item.json.hosted_image_url, length: $('Scene plan').item.json.length, frame_rate: 30, zoom_speed: 3 } ) }}",
+    "options": {
+     "batching": {
+      "batch": {
+       "batchSize": 1,
+       "batchInterval": 800
+      }
+     }
+    }
+   },
+   "credentials": {
+    "httpHeaderAuth": {
+     "id": "REPLACE_ME",
+     "name": "Your httpHeaderAuth"
+    }
+   }
+  },
+  {
+   "name": "Mux body",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    4160,
+    300
+   ],
+   "parameters": {
+    "jsCode": "// ffmpeg compose: clip video + VO audio, pad audio to clip length\nconst clip = $json.response;\nconst plan = $('Scene plan').all()[$itemIndex].json;\nconst body = {\n  inputs: [ { file_url: clip }, { file_url: plan.audio_url } ],\n  outputs: [ { options: [\n    { option: '-map', argument: '0:v:0' },\n    { option: '-map', argument: '1:a:0' },\n    { option: '-vf', argument: 'crop=in_w:in_h-72:0:0,scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,setsar=1' },\n    { option: '-c:v', argument: 'libx264' },\n    { option: '-preset', argument: 'veryfast' },\n    { option: '-crf', argument: '20' },\n    { option: '-pix_fmt', argument: 'yuv420p' },\n    { option: '-c:a', argument: 'aac' },\n    { option: '-af', argument: 'apad' },\n    { option: '-t', argument: String(plan.length) }\n  ] } ]\n};\nreturn { json: { body: JSON.stringify(body), index: plan.index } };",
+    "mode": "runOnceForEachItem"
+   }
+  },
+  {
+   "name": "NCA: mux voice",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    4420,
+    300
+   ],
+   "parameters": {
+    "method": "POST",
+    "url": "https://YOUR-NCA-HOST/v1/ffmpeg/compose",
+    "authentication": "genericCredentialType",
+    "genericAuthType": "httpHeaderAuth",
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={{ $json.body }}",
+    "options": {
+     "batching": {
+      "batch": {
+       "batchSize": 1,
+       "batchInterval": 800
+      }
+     }
+    }
+   },
+   "credentials": {
+    "httpHeaderAuth": {
+     "id": "REPLACE_ME",
+     "name": "Your httpHeaderAuth"
+    }
+   }
+  },
+  {
+   "name": "Collect clips",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    4680,
+    300
+   ],
+   "parameters": {
+    "jsCode": "// all scene clips -> ordered list for concatenation (+ carry meta)\nconst meta = $('Parse script').first().json;\nconst items = $input.all().map((it, i) => {\n  const r = it.json.response;\n  const url = Array.isArray(r) ? r[0].file_url : (r.file_url || r);\n  return { index: i, url };\n});\nreturn [{ json: {\n  video_urls: items.map(x => ({ video_url: x.url })),\n  title: meta.title, description: meta.description, tags: meta.tags, run_id: meta.run_id\n} }];",
+    "mode": "runOnceForAllItems"
+   }
+  },
+  {
+   "name": "NCA: concatenate",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    4940,
+    300
+   ],
+   "parameters": {
+    "method": "POST",
+    "url": "https://YOUR-NCA-HOST/v1/video/concatenate",
+    "authentication": "genericCredentialType",
+    "genericAuthType": "httpHeaderAuth",
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={{ JSON.stringify({ video_urls: $json.video_urls } ) }}",
+    "options": {}
+   },
+   "credentials": {
+    "httpHeaderAuth": {
+     "id": "REPLACE_ME",
+     "name": "Your httpHeaderAuth"
+    }
+   }
+  },
+  {
+   "name": "Caption body",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    5200,
+    300
+   ],
+   "parameters": {
+    "jsCode": "const video_url = $json.response;\nconst meta = $('Collect clips').first().json;\nconst body = {\n  video_url,\n  settings: {\n    style: 'highlight', position: 'middle_center', font_family: 'Arial', font_size: 78,\n    line_color: '#FFFFFF', word_color: '#FFD400', outline_color: '#000000', outline_width: 5,\n    max_words_per_line: 4, all_caps: true\n  }\n};\nreturn [{ json: { body: JSON.stringify(body), video_url, title: meta.title, description: meta.description, tags: meta.tags, run_id: meta.run_id } }];",
+    "mode": "runOnceForAllItems"
+   }
+  },
+  {
+   "name": "NCA: captions",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    5460,
+    300
+   ],
+   "parameters": {
+    "method": "POST",
+    "url": "https://YOUR-NCA-HOST/v1/video/caption",
+    "authentication": "genericCredentialType",
+    "genericAuthType": "httpHeaderAuth",
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={{ $json.body }}",
+    "options": {}
+   },
+   "credentials": {
+    "httpHeaderAuth": {
+     "id": "REPLACE_ME",
+     "name": "Your httpHeaderAuth"
+    }
+   },
+   "onError": "continueRegularOutput"
+  },
+  {
+   "name": "Final",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    5720,
+    300
+   ],
+   "parameters": {
+    "jsCode": "const meta = $('Caption body').first().json;\nconst r = $json.response;\nconst final_url = (typeof r === 'string') ? r : (r && r.file_url) || meta.video_url;\nreturn [{ json: { final_url, uncaptioned_url: meta.video_url, title: meta.title, description: meta.description, tags: meta.tags, run_id: meta.run_id } }];",
+    "mode": "runOnceForAllItems"
+   }
+  },
+  {
+   "name": "Email me the Short",
+   "type": "n8n-nodes-base.emailSend",
+   "typeVersion": 2.1,
+   "position": [
+    5980,
+    300
+   ],
+   "parameters": {
+    "fromEmail": "n8n <you@example.com>",
+    "toEmail": "you@example.com",
+    "subject": "=Short ready: {{ $json.title }}",
+    "emailFormat": "text",
+    "text": "=Final (captioned): {{ $json.final_url }}\nNo captions: {{ $json.uncaptioned_url }}\n\nTitle: {{ $json.title }}\n\n{{ $json.description }}\n\nTags: {{ ($json.tags || []).join(', ') }}\n\nFiles expire in 14 days. Download, then upload to YouTube - or connect the YouTube node and let it post.",
+    "options": {}
+   },
+   "credentials": {
+    "smtp": {
+     "id": "REPLACE_ME",
+     "name": "Your smtp"
+    }
+   }
+  },
+  {
+   "name": "Download final",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    6240,
+    300
+   ],
+   "disabled": true,
+   "parameters": {
+    "url": "={{ $json.final_url }}",
+    "options": {
+     "response": {
+      "response": {
+       "responseFormat": "file",
+       "outputPropertyName": "data"
+      }
+     }
+    }
+   }
+  },
+  {
+   "name": "YouTube: upload (connect your account)",
+   "type": "n8n-nodes-base.youTube",
+   "typeVersion": 1,
+   "position": [
+    6500,
+    300
+   ],
+   "disabled": true,
+   "parameters": {
+    "resource": "video",
+    "operation": "upload",
+    "title": "={{ $('Final').first().json.title }}",
+    "regionCode": "US",
+    "categoryId": "28",
+    "binaryProperty": "data",
+    "options": {
+     "description": "={{ $('Final').first().json.description }}",
+     "privacyStatus": "unlisted",
+     "tags": "={{ ($('Final').first().json.tags || []).join(',') }}"
+    }
+   }
+  },
+  {
+   "name": "Run via webhook",
+   "type": "n8n-nodes-base.webhook",
+   "typeVersion": 2,
+   "position": [
+    260,
+    520
+   ],
+   "parameters": {
+    "httpMethod": "POST",
+    "path": "shorts-factory",
+    "responseMode": "onReceived",
+    "options": {}
+   }
+  },
+  {
+   "name": "Topic from webhook",
+   "type": "n8n-nodes-base.set",
+   "typeVersion": 3.4,
+   "position": [
+    520,
+    520
+   ],
+   "parameters": {
+    "assignments": {
+     "assignments": [
+      {
+       "id": "w1",
+       "name": "topic",
+       "type": "string",
+       "value": "={{ $json.body.topic || 'Why small businesses lose leads after 5pm, and the auto-reply fix' }}"
+      },
+      {
+       "id": "w2",
+       "name": "system_prompt",
+       "type": "string",
+       "value": "You write 30-40 second YouTube Shorts scripts. Return ONLY JSON:\n{\"title\": \"...(<=60 chars, hooky, no clickbait lies)\",\n \"description\": \"...(2 lines + 3 hashtags)\",\n \"tags\": [\"..5-8..\"],\n \"scenes\": [ {\"voice\": \"one or two spoken sentences, natural, no emojis\", \"image_prompt\": \"vivid photorealistic vertical 9:16 image prompt, no text in image, no people faces\"} ] }\nRules: exactly 6 scenes. Scene 1 = a hook that names a concrete pain or number. Scene 6 = one-line takeaway + \"follow for the next one\". Total spoken words 80-100. Plain English, no hype words (revolutionary, game-changing, unlock). NEVER invent statistics or percentages; if the topic gives no number, say \"most\" or \"many\". ASCII characters only: plain hyphens, plain quotes, no special spaces."
+      }
+     ]
+    },
+    "options": {}
+   }
+  }
+ ],
+ "connections": {
+  "Run": {
+   "main": [
+    [
+     {
+      "node": "Topic",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Topic": {
+   "main": [
+    [
+     {
+      "node": "Build Groq request",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Build Groq request": {
+   "main": [
+    [
+     {
+      "node": "Groq: write script",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Groq: write script": {
+   "main": [
+    [
+     {
+      "node": "Parse script",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Parse script": {
+   "main": [
+    [
+     {
+      "node": "ElevenLabs: voice",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "ElevenLabs: voice": {
+   "main": [
+    [
+     {
+      "node": "Upload VO to MinIO",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Upload VO to MinIO": {
+   "main": [
+    [
+     {
+      "node": "NCA: VO duration",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "NCA: VO duration": {
+   "main": [
+    [
+     {
+      "node": "Scene plan",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Scene plan": {
+   "main": [
+    [
+     {
+      "node": "Loop over scenes",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Loop over scenes": {
+   "main": [
+    [
+     {
+      "node": "Images ready",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "Breathe",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Pollinations: image": {
+   "main": [
+    [
+     {
+      "node": "Got image?",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Upload image to MinIO": {
+   "main": [
+    [
+     {
+      "node": "Loop over scenes",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Breathe": {
+   "main": [
+    [
+     {
+      "node": "Pollinations: image",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Got image?": {
+   "main": [
+    [
+     {
+      "node": "Upload image to MinIO",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "Breathe",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Images ready": {
+   "main": [
+    [
+     {
+      "node": "NCA: image to clip",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "NCA: image to clip": {
+   "main": [
+    [
+     {
+      "node": "Mux body",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Mux body": {
+   "main": [
+    [
+     {
+      "node": "NCA: mux voice",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "NCA: mux voice": {
+   "main": [
+    [
+     {
+      "node": "Collect clips",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Collect clips": {
+   "main": [
+    [
+     {
+      "node": "NCA: concatenate",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "NCA: concatenate": {
+   "main": [
+    [
+     {
+      "node": "Caption body",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Caption body": {
+   "main": [
+    [
+     {
+      "node": "NCA: captions",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "NCA: captions": {
+   "main": [
+    [
+     {
+      "node": "Final",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Final": {
+   "main": [
+    [
+     {
+      "node": "Email me the Short",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Email me the Short": {
+   "main": [
+    [
+     {
+      "node": "Download final",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Download final": {
+   "main": [
+    [
+     {
+      "node": "YouTube: upload (connect your account)",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Run via webhook": {
+   "main": [
+    [
+     {
+      "node": "Topic from webhook",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Topic from webhook": {
+   "main": [
+    [
+     {
+      "node": "Build Groq request",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  }
+ },
+ "settings": {
+  "executionOrder": "v1",
+  "saveManualExecutions": true
+ }
+}

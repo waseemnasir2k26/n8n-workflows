@@ -3,14 +3,14 @@
   "workflows": [
     {
       "slug": "shorts-factory",
-      "title": "YouTube Shorts factory — script → voice → clips → render → upload",
-      "status": "in production",
+      "title": "Shorts factory (SF-01) - topic in, captioned 9:16 Short out",
+      "status": "live",
       "video_url": null,
-      "json_url": null
+      "json_url": "https://github.com/waseemnasir2k26/n8n-workflows/tree/main/workflows/01-shorts-factory"
     },
     {
       "slug": "workflow-library-signup",
-      "title": "Workflow library signup — webhook → validate → Postgres upsert → welcome email",
+      "title": "Workflow library signup \u2014 webhook \u2192 validate \u2192 Postgres upsert \u2192 welcome email",
       "status": "live",
       "video_url": null,
       "json_url": "https://github.com/waseemnasir2k26/n8n-workflows/tree/main/workflows/00-workflow-library-signup"

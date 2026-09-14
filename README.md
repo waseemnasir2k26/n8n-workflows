@@ -20,10 +20,13 @@ SQL the workflow expects.
 
 ## Workflows
 
-| #   | Workflow                                                         | What it does                                                                                                                      | Status        | Video | JSON                                                                |
-| --- | ---------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- | ------------- | ----- | ------------------------------------------------------------------- |
-| 00  | [Workflow library signup](workflows/00-workflow-library-signup/) | Webhook → validate + honeypot → Postgres upsert → welcome email → JSON response. The capture lane behind workflows.skynetjoe.com. | live          | —     | [workflow.json](workflows/00-workflow-library-signup/workflow.json) |
-| 01  | YouTube Shorts factory                                           | Script → voice → clips → render → upload                                                                                          | in production | —     | —                                                                   |
+| #   | Workflow | What it does | Credentials you need | Status | Video | JSON |
+| --- | --- | --- | --- | --- | --- | --- |
+| 00  | [Workflow library signup](workflows/00-workflow-library-signup/) | Webhook &rarr; validate + honeypot &rarr; Postgres upsert &rarr; welcome email &rarr; JSON response. The capture lane behind workflows.skynetjoe.com. | Postgres, SMTP | live | &mdash; | [workflow.json](workflows/00-workflow-library-signup/workflow.json) |
+| 01  | [Shorts factory (SF-01)](workflows/01-shorts-factory/) | Topic in &rarr; six-scene script, voiceover, one image per scene, slow-zoom clips, concat, burned-in captions &rarr; a finished 9:16 MP4 in your inbox. 28 nodes. | Header Auth &times;3 (Groq, ElevenLabs, your NCA Toolkit), an S3/MinIO credential, SMTP. Needs a self-hosted [NCA Toolkit](https://github.com/stephengpope/no-code-architects-toolkit) + an S3-compatible bucket. | live | &mdash; | [workflow.json](workflows/01-shorts-factory/workflow.json) |
+
+Every URL in a published workflow that points at a host is a placeholder &mdash; `YOUR-N8N`,
+`YOUR-NCA-HOST` &mdash; and every credential is `REPLACE_ME`. Nothing here talks to our servers.
 
 The same table is served as [`site/workflows.json`](site/workflows.json) and rendered on the
 landing page.
@@ -34,6 +37,12 @@ landing page.
 workflows/   one folder per workflow: workflow.json + README.md (+ schema.sql when needed)
 site/        the landing page at workflows.skynetjoe.com (static, no build step)
 ```
+
+## Free access
+
+- **The workflows** &mdash; this repo, MIT licence, no signup to download.
+- **New ones by email** &mdash; https://workflows.skynetjoe.com
+- **The videos** &mdash; https://www.youtube.com/@Skynetlabs2k25 (one workflow per video, the JSON lands here the same day)
 
 ## Need this built for your business?
 

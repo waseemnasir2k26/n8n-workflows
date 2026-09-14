@@ -9,3 +9,6 @@ __pycache__/
 *.png
 .DS_Store
 Thumbs.db
+
+# internal planning document, not for the public library
+PLAN-100-VIDEOS.html
