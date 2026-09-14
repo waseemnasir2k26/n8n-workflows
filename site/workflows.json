@@ -1,0 +1,19 @@
+{
+  "updated": "2026-09-14",
+  "workflows": [
+    {
+      "slug": "shorts-factory",
+      "title": "YouTube Shorts factory — script → voice → clips → render → upload",
+      "status": "in production",
+      "video_url": null,
+      "json_url": null
+    },
+    {
+      "slug": "workflow-library-signup",
+      "title": "Workflow library signup — webhook → validate → Postgres upsert → welcome email",
+      "status": "live",
+      "video_url": null,
+      "json_url": "https://github.com/waseemnasir2k26/n8n-workflows/tree/main/workflows/00-workflow-library-signup"
+    }
+  ]
+}

@@ -1,0 +1,656 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Free n8n workflows, one per video — SkynetLabs</title>
+    <meta
+      name="description"
+      content="Every automation I build on YouTube, as importable n8n JSON. Nothing sold, nothing gated behind a course."
+    />
+    <link rel="canonical" href="https://workflows.skynetjoe.com/" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Free n8n workflows, one per video" />
+    <meta
+      property="og:description"
+      content="Every automation I build on YouTube, as importable n8n JSON. Nothing sold, nothing gated behind a course."
+    />
+    <meta property="og:url" content="https://workflows.skynetjoe.com/" />
+    <meta property="og:site_name" content="SkynetLabs" />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="Free n8n workflows, one per video" />
+    <meta
+      name="twitter:description"
+      content="Every automation I build on YouTube, as importable n8n JSON. Nothing sold, nothing gated behind a course."
+    />
+    <meta name="theme-color" content="#f2efe6" />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23f2efe6'/%3E%3Ccircle cx='18' cy='32' r='7' fill='%231a1a1a'/%3E%3Ccircle cx='46' cy='18' r='7' fill='%23c66b3f'/%3E%3Ccircle cx='46' cy='46' r='7' fill='%23c66b3f'/%3E%3Cpath d='M24 30 L40 20 M24 34 L40 44' stroke='%231a1a1a' stroke-width='4' stroke-linecap='round'/%3E%3C/svg%3E"
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=IBM+Plex+Mono:wght@500&family=Inter:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --cream: #f2efe6;
+        --cream-2: #ede8dc;
+        --cream-3: #faf7f0;
+        --ink: #1a1a1a;
+        --ink-2: #3a3a36;
+        --ink-faint: #56564f;
+        --rust: #c66b3f;
+        --rust-2: #b85a30;
+        --rust-aa: #a8451f;
+        --sage: #8a9a7b;
+        --oxblood: #6b2c2c;
+        --ochre: #c9a96e;
+        --display: "Bricolage Grotesque", "Arial Black", Arial, sans-serif;
+        --body: Inter, system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
+        --mono: "IBM Plex Mono", Consolas, "Courier New", monospace;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html {
+        color-scheme: light;
+      }
+      body {
+        margin: 0;
+        background: var(--cream);
+        color: var(--ink);
+        font-family: var(--body);
+        font-size: 17px;
+        line-height: 1.55;
+        -webkit-font-smoothing: antialiased;
+        overflow-x: hidden;
+      }
+      a {
+        color: var(--rust-aa);
+        text-decoration-thickness: 1px;
+        text-underline-offset: 3px;
+      }
+      a:hover {
+        color: var(--rust-2);
+      }
+      .wrap {
+        max-width: 760px;
+        margin: 0 auto;
+        padding-inline: 20px;
+      }
+      .eyebrow {
+        font-family: var(--mono);
+        font-size: 12px;
+        font-weight: 500;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: var(--rust-aa);
+      }
+
+      header.top {
+        padding-block: 22px 8px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+      .wordmark {
+        font-family: var(--mono);
+        font-weight: 500;
+        font-size: 15px;
+        color: var(--ink);
+        text-decoration: none;
+        letter-spacing: 0.02em;
+      }
+      .wordmark b {
+        color: var(--rust);
+        font-weight: 500;
+      }
+      .topnav {
+        display: flex;
+        gap: 18px;
+        font-size: 14px;
+      }
+      .topnav a {
+        color: var(--ink-2);
+        text-decoration: none;
+      }
+      .topnav a:hover {
+        color: var(--rust-2);
+      }
+
+      .hero {
+        padding-block: 44px 28px;
+      }
+      h1 {
+        font-family: var(--display);
+        font-weight: 800;
+        font-size: clamp(38px, 8vw, 64px);
+        line-height: 1;
+        letter-spacing: -0.02em;
+        margin: 14px 0 18px;
+      }
+      h1 .rust {
+        color: var(--rust);
+      }
+      .sub {
+        font-size: clamp(17px, 2.4vw, 20px);
+        color: var(--ink-2);
+        max-width: 56ch;
+        margin: 0 0 30px;
+      }
+
+      form.signup {
+        background: var(--cream-3);
+        border: 1px solid var(--cream-2);
+        border-radius: 14px;
+        padding: 18px;
+        box-shadow: 0 1px 0 rgba(26, 26, 26, 0.04);
+      }
+      .row {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+      .row input[type="email"] {
+        flex: 1 1 220px;
+        min-width: 0;
+        font: inherit;
+        font-size: 17px;
+        padding: 14px 16px;
+        border: 1.5px solid #d9d3c4;
+        border-radius: 10px;
+        background: #fff;
+        color: var(--ink);
+      }
+      .row input[type="email"]:focus {
+        outline: 3px solid rgba(198, 107, 63, 0.28);
+        border-color: var(--rust);
+      }
+      .row button {
+        flex: 0 0 auto;
+        font: inherit;
+        font-weight: 600;
+        font-size: 16px;
+        padding: 14px 20px;
+        border: 0;
+        border-radius: 10px;
+        background: var(--rust);
+        color: #fff;
+        cursor: pointer;
+        transition:
+          background 0.15s,
+          transform 0.05s;
+      }
+      .row button:hover {
+        background: var(--rust-2);
+      }
+      .row button:active {
+        transform: translateY(1px);
+      }
+      .row button[disabled] {
+        opacity: 0.6;
+        cursor: wait;
+      }
+      .hp {
+        position: absolute;
+        left: -9999px;
+        top: -9999px;
+        width: 1px;
+        height: 1px;
+        opacity: 0;
+      }
+      .fine {
+        font-size: 13px;
+        color: var(--ink-faint);
+        margin: 12px 0 0;
+      }
+      .msg {
+        margin: 12px 0 0;
+        font-weight: 500;
+        font-size: 15px;
+        padding: 10px 12px;
+        border-radius: 8px;
+        display: none;
+      }
+      .msg.ok {
+        display: block;
+        background: #eef1ea;
+        color: #3f4f33;
+        border-left: 3px solid var(--sage);
+      }
+      .msg.err {
+        display: block;
+        background: #f3e6e3;
+        color: var(--oxblood);
+        border-left: 3px solid var(--oxblood);
+      }
+
+      .proof {
+        display: flex;
+        gap: 22px;
+        flex-wrap: wrap;
+        padding-block: 26px 8px;
+      }
+      .proof div {
+        flex: 1 1 180px;
+      }
+      .proof .k {
+        font-family: var(--display);
+        font-weight: 700;
+        font-size: 20px;
+        line-height: 1.2;
+        margin: 6px 0 4px;
+      }
+      .proof .v {
+        font-size: 14px;
+        color: var(--ink-2);
+        margin: 0;
+      }
+
+      section.list {
+        padding-block: 34px 10px;
+      }
+      h2 {
+        font-family: var(--display);
+        font-weight: 700;
+        font-size: clamp(26px, 4.5vw, 34px);
+        letter-spacing: -0.015em;
+        margin: 8px 0 18px;
+        line-height: 1.1;
+      }
+      ul.wf {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: grid;
+        gap: 12px;
+      }
+      li.card {
+        background: var(--cream-3);
+        border: 1px solid var(--cream-2);
+        border-radius: 12px;
+        padding: 16px 18px;
+        display: grid;
+        gap: 8px;
+      }
+      .card .t {
+        font-weight: 600;
+        font-size: 17px;
+        margin: 0;
+        line-height: 1.35;
+      }
+      .card .meta {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        align-items: center;
+      }
+      .pill {
+        font-family: var(--mono);
+        font-size: 11px;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        padding: 4px 9px;
+        border-radius: 999px;
+        background: var(--cream-2);
+        color: var(--ink-2);
+      }
+      .pill.live {
+        background: #e6ebe1;
+        color: #3f4f33;
+      }
+      .pill.prod {
+        background: #f6e9d2;
+        color: #7a5a1e;
+      }
+      .card .links {
+        display: flex;
+        gap: 14px;
+        flex-wrap: wrap;
+        font-size: 14px;
+      }
+      .card .soon {
+        font-size: 14px;
+        color: var(--ink-faint);
+      }
+      .empty {
+        color: var(--ink-faint);
+        font-size: 15px;
+      }
+
+      section.how {
+        padding-block: 28px 10px;
+      }
+      ol.steps {
+        margin: 0;
+        padding-left: 22px;
+        display: grid;
+        gap: 8px;
+        color: var(--ink-2);
+      }
+      ol.steps code {
+        font-family: var(--mono);
+        font-size: 14px;
+        background: var(--cream-2);
+        padding: 1px 6px;
+        border-radius: 5px;
+      }
+
+      footer {
+        margin-top: 44px;
+        padding-block: 26px 36px;
+        border-top: 1px solid #ddd6c6;
+        font-size: 14px;
+        color: var(--ink-2);
+      }
+      footer .links {
+        display: flex;
+        gap: 16px;
+        flex-wrap: wrap;
+        margin: 10px 0 0;
+      }
+      footer p {
+        margin: 0 0 6px;
+      }
+      @media (max-width: 480px) {
+        body {
+          font-size: 16px;
+        }
+        .row button {
+          width: 100%;
+        }
+        form.signup {
+          padding: 14px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <header class="top">
+        <a class="wordmark" href="https://skynetjoe.com"
+          >Skynet<b>_</b>Labs<b>_</b></a
+        >
+        <nav class="topnav">
+          <a
+            href="https://github.com/waseemnasir2k26/n8n-workflows"
+            rel="noopener"
+            >GitHub</a
+          >
+          <a href="https://www.youtube.com/@Skynetlabs2k25" rel="noopener"
+            >YouTube</a
+          >
+          <a href="#workflows">Latest</a>
+        </nav>
+      </header>
+
+      <section class="hero">
+        <p class="eyebrow">n8n workflow library · free · MIT</p>
+        <h1>Free n8n workflows, <span class="rust">one per video.</span></h1>
+        <p class="sub">
+          Every automation I build on YouTube, as importable JSON. Nothing sold,
+          nothing gated behind a course.
+        </p>
+
+        <form class="signup" id="signup" novalidate>
+          <div class="row">
+            <label for="email" class="hp" aria-hidden="true">Email</label>
+            <input
+              id="email"
+              name="email"
+              type="email"
+              inputmode="email"
+              autocomplete="email"
+              placeholder="you@company.com"
+              required
+            />
+            <input
+              class="hp"
+              type="text"
+              name="website"
+              tabindex="-1"
+              autocomplete="off"
+              aria-hidden="true"
+            />
+            <button type="submit" id="btn">Send me the workflows</button>
+          </div>
+          <p class="msg" id="msg" role="status" aria-live="polite"></p>
+          <p class="fine">
+            One email per new workflow. Reply "stop" to leave. No newsletter, no
+            upsell sequence.
+          </p>
+        </form>
+
+        <div class="proof">
+          <div>
+            <p class="eyebrow">What you get</p>
+            <p class="k">Importable JSON</p>
+            <p class="v">Paste into any n8n — cloud or self-hosted.</p>
+          </div>
+          <div>
+            <p class="eyebrow">Cadence</p>
+            <p class="k">New workflow every video</p>
+            <p class="v">The build is filmed; the JSON ships with it.</p>
+          </div>
+          <div>
+            <p class="eyebrow">Licence</p>
+            <p class="k">MIT</p>
+            <p class="v">
+              Use it in client work. Credit welcome, not required.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section class="list" id="workflows">
+        <p class="eyebrow">Latest workflows</p>
+        <h2>What's in the library</h2>
+        <ul class="wf" id="wf-list">
+          <li class="empty">Loading…</li>
+        </ul>
+      </section>
+
+      <section class="how">
+        <p class="eyebrow">Import in 4 steps</p>
+        <h2>JSON to running in under a minute</h2>
+        <ol class="steps">
+          <li>
+            Open the workflow folder on GitHub and copy the raw
+            <code>workflow.json</code>.
+          </li>
+          <li>
+            In n8n, open a blank canvas and press <code>Ctrl/Cmd + V</code> (or
+            Menu → Import from file).
+          </li>
+          <li>
+            Replace every credential marked <code>REPLACE_ME</code> with your
+            own.
+          </li>
+          <li>Run once manually, then toggle Active.</li>
+        </ol>
+      </section>
+
+      <footer>
+        <p>
+          Your email is stored in our own database, used only to send workflow
+          links. Unsubscribe = reply "stop".
+        </p>
+        <p>Built by Waseem Nasir · SkynetLabs.</p>
+        <div class="links">
+          <a href="https://skynetjoe.com">skynetjoe.com</a>
+          <a
+            href="https://github.com/waseemnasir2k26/n8n-workflows"
+            rel="noopener"
+            >GitHub repo</a
+          >
+          <a href="https://www.youtube.com/@Skynetlabs2k25" rel="noopener"
+            >YouTube</a
+          >
+        </div>
+      </footer>
+    </div>
+
+    <script>
+      (function () {
+        var WEBHOOK = "https://n8n.skynetjoe.com/webhook/workflow-signup";
+        var form = document.getElementById("signup");
+        var email = document.getElementById("email");
+        var btn = document.getElementById("btn");
+        var msg = document.getElementById("msg");
+        var slug = null;
+        try {
+          slug = new URLSearchParams(location.search).get("w") || null;
+        } catch (e) {}
+
+        function show(kind, text) {
+          msg.className = "msg " + kind;
+          msg.textContent = text;
+        }
+
+        form.addEventListener("submit", function (ev) {
+          ev.preventDefault();
+          var value = (email.value || "").trim();
+          var re = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+          if (!re.test(value)) {
+            show(
+              "err",
+              "That email does not look right — check it and try again.",
+            );
+            email.focus();
+            return;
+          }
+          btn.disabled = true;
+          btn.textContent = "Sending…";
+          msg.className = "msg";
+          var payload = {
+            email: value,
+            source: "workflows-page",
+            workflow_slug: slug,
+            website: form.elements.website.value || "",
+          };
+          fetch(WEBHOOK, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          })
+            .then(function (r) {
+              return r.json().then(function (j) {
+                return { status: r.status, body: j };
+              });
+            })
+            .then(function (res) {
+              if (res.body && res.body.ok) {
+                show("ok", "Check your inbox — first link is on its way.");
+                form.dataset.state = "success";
+                email.value = "";
+              } else if (res.status === 400) {
+                show(
+                  "err",
+                  "That email does not look right — check it and try again.",
+                );
+                form.dataset.state = "invalid";
+              } else {
+                show(
+                  "err",
+                  "Something broke on our side. Email waseem@skynetjoe.com and I will add you by hand.",
+                );
+                form.dataset.state = "error";
+              }
+            })
+            .catch(function () {
+              show(
+                "err",
+                "Could not reach the server. Try again in a minute, or email waseem@skynetjoe.com.",
+              );
+              form.dataset.state = "error";
+            })
+            .then(function () {
+              btn.disabled = false;
+              btn.textContent = "Send me the workflows";
+            });
+        });
+
+        // Latest workflows list from workflows.json (sibling file). Null links are hidden, never rendered as dead anchors.
+        var list = document.getElementById("wf-list");
+        function esc(s) {
+          return String(s).replace(/[&<>"']/g, function (c) {
+            return {
+              "&": "&amp;",
+              "<": "&lt;",
+              ">": "&gt;",
+              '"': "&quot;",
+              "'": "&#39;",
+            }[c];
+          });
+        }
+        function pillClass(status) {
+          var s = String(status || "").toLowerCase();
+          return s === "live"
+            ? "pill live"
+            : s.indexOf("prod") >= 0
+              ? "pill prod"
+              : "pill";
+        }
+        fetch("workflows.json", { cache: "no-store" })
+          .then(function (r) {
+            return r.json();
+          })
+          .then(function (data) {
+            var items = (data && data.workflows) || [];
+            if (!items.length) {
+              list.innerHTML =
+                '<li class="empty">First workflow lands with the first video.</li>';
+              return;
+            }
+            list.innerHTML = items
+              .map(function (w) {
+                var links = [];
+                if (w.video_url)
+                  links.push(
+                    '<a href="' +
+                      esc(w.video_url) +
+                      '" rel="noopener">Watch the build</a>',
+                  );
+                if (w.json_url)
+                  links.push(
+                    '<a href="' +
+                      esc(w.json_url) +
+                      '" rel="noopener">Get the JSON</a>',
+                  );
+                var linksHtml = links.length
+                  ? '<div class="links">' + links.join("") + "</div>"
+                  : '<div class="soon">Video + JSON land together when the build is published. Sign up above and it arrives in your inbox.</div>';
+                return (
+                  '<li class="card" data-slug="' +
+                  esc(w.slug) +
+                  '">' +
+                  '<p class="t">' +
+                  esc(w.title) +
+                  "</p>" +
+                  '<div class="meta"><span class="' +
+                  pillClass(w.status) +
+                  '">' +
+                  esc(w.status || "planned") +
+                  "</span>" +
+                  '<span class="eyebrow" style="letter-spacing:.08em">' +
+                  esc(w.slug) +
+                  "</span></div>" +
+                  linksHtml +
+                  "</li>"
+                );
+              })
+              .join("");
+          })
+          .catch(function () {
+            list.innerHTML =
+              '<li class="empty">Workflow list is loading slowly — the GitHub repo has everything in the meantime.</li>';
+          });
+      })();
+    </script>
+  </body>
+</html>

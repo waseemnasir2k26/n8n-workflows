@@ -1,0 +1,369 @@
+{
+  "name": "WF-00 Workflow Library Signup",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "workflow-signup",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "https://workflows.skynetjoe.com",
+          "ignoreBots": false
+        }
+      },
+      "name": "Signup Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// WF-00 Workflow Library Signup - validate input\nconst item = $input.first().json;\nlet body = item.body || {};\nconst headers = item.headers || {};\n// curl -d '{\"...\"}' without a content-type header arrives as a form-encoded key with an empty value\nif (!body.email) {\n  for (const k of Object.keys(body)) {\n    const key = String(k).trim();\n    if (key.charAt(0) === \"{\") {\n      try {\n        const parsed = JSON.parse(key);\n        if (parsed && typeof parsed === \"object\") {\n          body = parsed;\n          // form-decoding turned \"+\" into \" \" inside the raw JSON; a space is never valid in an email\n          if (typeof body.email === \"string\") body.email = body.email.replace(/ /g, \"+\");\n          break;\n        }\n      } catch (e) {}\n    }\n  }\n}\nconst emailRaw = typeof body.email === \"string\" ? body.email : \"\";\nconst email = emailRaw.trim().toLowerCase();\nconst honeypot = typeof body.website === \"string\" ? body.website.trim() : \"\";\nconst re = /^[a-z0-9._%+-]+@[a-z0-9.-]+\\.[a-z]{2,}$/;\nconst valid =\n  email.length > 3 && email.length <= 254 && re.test(email) && honeypot === \"\";\nconst fwd = String(\n  headers[\"x-forwarded-for\"] ||\n    headers[\"cf-connecting-ip\"] ||\n    headers[\"x-real-ip\"] ||\n    \"\",\n);\nconst ip = fwd.split(\",\")[0].trim().slice(0, 64) || null;\nconst ua = String(headers[\"user-agent\"] || \"\").slice(0, 300) || null;\nconst source =\n  typeof body.source === \"string\" && body.source.trim()\n    ? body.source.trim().slice(0, 64)\n    : \"unknown\";\nconst slug =\n  typeof body.workflow_slug === \"string\" && body.workflow_slug.trim()\n    ? body.workflow_slug.trim().slice(0, 80)\n    : null;\nreturn [\n  {\n    json: {\n      ok: valid,\n      error: valid ? null : honeypot ? \"honeypot\" : \"invalid_email\",\n      email,\n      source,\n      workflow_slug: slug,\n      ip,\n      user_agent: ua,\n    },\n  },\n];\n"
+      },
+      "name": "Validate",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ $json.ok }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "name": "Valid?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        480,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\"ok\": false, \"error\": \"invalid_email\"}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          },
+          "responseCode": 400
+        }
+      },
+      "name": "Respond 400 Invalid",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        720,
+        520
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO workflow_subscribers (email, source, workflow_slug, ip, user_agent)\nVALUES ($1, $2, $3, $4, $5)\nON CONFLICT (email) DO UPDATE SET\n  last_seen_at = now(),\n  source = EXCLUDED.source,\n  workflow_slug = COALESCE(EXCLUDED.workflow_slug, workflow_subscribers.workflow_slug),\n  unsubscribed_at = NULL\nRETURNING id, (xmax = 0) AS is_new;",
+        "options": {
+          "queryReplacement": "={{ [ $json.email, $json.source, $json.workflow_slug, $json.ip, $json.user_agent ] }}"
+        }
+      },
+      "name": "Upsert Subscriber",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        720,
+        200
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "REPLACE_ME",
+          "name": "Your Postgres"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c2",
+              "leftValue": "={{ $json.is_new }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "name": "New Subscriber?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        960,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "fromEmail": "SkynetLabs <waseem@skynetlabsai.com>",
+        "toEmail": "={{ $('Validate').item.json.email }}",
+        "subject": "Your n8n workflow library access",
+        "emailFormat": "both",
+        "text": "Hi,\n\nYou're in. Here's where the n8n workflow library lives:\n\n- GitHub (importable JSON, MIT, free): https://github.com/waseemnasir2k26/n8n-workflows\n- Library page (latest workflows + the video behind each one): https://workflows.skynetjoe.com\n\nHow it works: every automation I build on YouTube gets published as an n8n workflow JSON you can import in under a minute. New workflow every video. Nothing sold, nothing gated behind a course.\n\nReply to this email with the automation you want built next.\n\nWaseem Nasir\nSkynetLabs\nhttps://skynetjoe.com\n\nTo stop these emails, reply \"stop\".\n",
+        "html": "<div\n  style=\"\n    font-family: Inter, Arial, sans-serif;\n    font-size: 16px;\n    line-height: 1.6;\n    color: #1a1a1a;\n    background: #f2efe6;\n    padding: 32px 20px;\n  \"\n>\n  <div\n    style=\"\n      max-width: 560px;\n      margin: 0 auto;\n      background: #faf7f0;\n      border: 1px solid #ede8dc;\n      border-radius: 12px;\n      padding: 28px 24px;\n    \"\n  >\n    <p\n      style=\"\n        margin: 0 0 8px;\n        font-family: &quot;IBM Plex Mono&quot;, Consolas, monospace;\n        font-size: 12px;\n        letter-spacing: 0.14em;\n        text-transform: uppercase;\n        color: #a8451f;\n      \"\n    >\n      Skynet_Labs_ &middot; n8n workflow library\n    </p>\n    <h1 style=\"margin: 0 0 16px; font-size: 24px; line-height: 1.2\">\n      You're in.\n    </h1>\n    <p style=\"margin: 0 0 16px\">Here's where the library lives:</p>\n    <p style=\"margin: 0 0 8px\">\n      <a\n        href=\"https://github.com/waseemnasir2k26/n8n-workflows\"\n        style=\"color: #c66b3f; font-weight: 700\"\n        >GitHub repo</a\n      >\n      &mdash; importable JSON, MIT, free.\n    </p>\n    <p style=\"margin: 0 0 20px\">\n      <a\n        href=\"https://workflows.skynetjoe.com\"\n        style=\"color: #c66b3f; font-weight: 700\"\n        >workflows.skynetjoe.com</a\n      >\n      &mdash; latest workflows + the video behind each one.\n    </p>\n    <p style=\"margin: 0 0 20px\">\n      Every automation I build on YouTube gets published as an n8n workflow JSON\n      you can import in under a minute. New workflow every video. Nothing sold,\n      nothing gated behind a course.\n    </p>\n    <p\n      style=\"\n        margin: 0 0 24px;\n        padding: 14px 16px;\n        background: #f2efe6;\n        border-left: 3px solid #c66b3f;\n      \"\n    >\n      Reply to this email with the automation you want built next.\n    </p>\n    <p style=\"margin: 0\">\n      Waseem Nasir<br />SkynetLabs<br /><a\n        href=\"https://skynetjoe.com\"\n        style=\"color: #c66b3f\"\n        >skynetjoe.com</a\n      >\n    </p>\n  </div>\n  <p\n    style=\"\n      max-width: 560px;\n      margin: 16px auto 0;\n      font-size: 12px;\n      color: #56564f;\n    \"\n  >\n    To stop these emails, reply \"stop\".\n  </p>\n</div>\n",
+        "options": {
+          "replyTo": "waseem@skynetlabsai.com",
+          "appendAttribution": false
+        }
+      },
+      "name": "Send Welcome Email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        1200,
+        100
+      ],
+      "credentials": {
+        "smtp": {
+          "id": "REPLACE_ME",
+          "name": "Your SMTP"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\"ok\": true, \"new\": true}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        }
+      },
+      "name": "Respond OK New",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1440,
+        40
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\"ok\": true, \"new\": false}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        }
+      },
+      "name": "Respond OK Existing",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1200,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\"ok\": false, \"error\": \"server_error\"}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          },
+          "responseCode": 500
+        }
+      },
+      "name": "Respond 500 DB Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        960,
+        440
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\"ok\": false, \"error\": \"email_failed\"}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          },
+          "responseCode": 500
+        }
+      },
+      "name": "Respond 500 Email Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1440,
+        220
+      ]
+    }
+  ],
+  "connections": {
+    "Signup Webhook": {
+      "main": [
+        [
+          {
+            "node": "Validate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate": {
+      "main": [
+        [
+          {
+            "node": "Valid?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Valid?": {
+      "main": [
+        [
+          {
+            "node": "Upsert Subscriber",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond 400 Invalid",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upsert Subscriber": {
+      "main": [
+        [
+          {
+            "node": "New Subscriber?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond 500 DB Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "New Subscriber?": {
+      "main": [
+        [
+          {
+            "node": "Send Welcome Email",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond OK Existing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Welcome Email": {
+      "main": [
+        [
+          {
+            "node": "Respond OK New",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond 500 Email Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

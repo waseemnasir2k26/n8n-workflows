@@ -1,0 +1,11 @@
+# internal production tooling, never part of the public library
+_pipeline/
+secrets/
+*.env
+.env*
+node_modules/
+__pycache__/
+*.mp4
+*.png
+.DS_Store
+Thumbs.db
