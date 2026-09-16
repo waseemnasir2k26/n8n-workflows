@@ -8,6 +8,10 @@ Want the new ones in your inbox? Sign up at **https://workflows.skynetjoe.com**
 (your address goes into a self-hosted Postgres table and is used only to send workflow links;
 reply "stop" to leave).
 
+## Status
+
+Last reviewed: September 2026 · release v2026.09
+
 ## Import a workflow into n8n in 4 steps
 
 1. Open the workflow folder below and copy the raw contents of `workflow.json`.
