@@ -162,12 +162,12 @@
    ],
    "parameters": {
     "method": "POST",
-    "url": "https://YOUR-NCA-HOST/v1/media/metadata",
+    "url": "https://nca.skynetjoe.com/v1/media/metadata",
     "authentication": "genericCredentialType",
     "genericAuthType": "httpHeaderAuth",
     "sendBody": true,
     "specifyBody": "json",
-    "jsonBody": "={{ JSON.stringify({ media_url: 'https://YOUR-NCA-HOST/nca/sf/' + $('Parse script').item.json.run_id + '-' + $('Parse script').item.json.index + '.mp3' } ) }}",
+    "jsonBody": "={{ JSON.stringify({ media_url: 'https://nca.skynetjoe.com/nca/sf/' + $('Parse script').item.json.run_id + '-' + $('Parse script').item.json.index + '.mp3' } ) }}",
     "options": {
      "batching": {
       "batch": {
@@ -193,7 +193,7 @@
     300
    ],
    "parameters": {
-    "jsCode": "// pair each VO duration back with its scene; clip = VO + 0.4s breathing room\nconst scenes = $('Parse script').all().map(x => x.json);\nreturn $input.all().map((item, i) => {\n  const s = scenes[i];\n  const dur = Number(item.json.response && item.json.response.duration) || 3;\n  const length = Math.ceil((dur + 0.4) * 10) / 10;\n  const base = 'https://YOUR-NCA-HOST/nca/sf/' + s.run_id + '-' + s.index;\n  return { json: Object.assign({}, s, { vo_seconds: dur, length, audio_url: base + '.mp3', hosted_image_url: base + '.jpg' }) };\n});",
+    "jsCode": "// pair each VO duration back with its scene; clip = VO + 0.4s breathing room\nconst scenes = $('Parse script').all().map(x => x.json);\nreturn $input.all().map((item, i) => {\n  const s = scenes[i];\n  const dur = Number(item.json.response && item.json.response.duration) || 3;\n  const length = Math.ceil((dur + 0.4) * 10) / 10;\n  const base = 'https://nca.skynetjoe.com/nca/sf/' + s.run_id + '-' + s.index;\n  return { json: Object.assign({}, s, { vo_seconds: dur, length, audio_url: base + '.mp3', hosted_image_url: base + '.jpg' }) };\n});",
     "mode": "runOnceForAllItems"
    }
   },
@@ -331,7 +331,7 @@
    ],
    "parameters": {
     "method": "POST",
-    "url": "https://YOUR-NCA-HOST/v1/image/convert/video",
+    "url": "https://nca.skynetjoe.com/v1/image/convert/video",
     "authentication": "genericCredentialType",
     "genericAuthType": "httpHeaderAuth",
     "sendBody": true,
@@ -362,7 +362,7 @@
     300
    ],
    "parameters": {
-    "jsCode": "// ffmpeg compose: clip video + VO audio, pad audio to clip length\nconst clip = $json.response;\nconst plan = $('Scene plan').all()[$itemIndex].json;\nconst body = {\n  inputs: [ { file_url: clip }, { file_url: plan.audio_url } ],\n  outputs: [ { options: [\n    { option: '-map', argument: '0:v:0' },\n    { option: '-map', argument: '1:a:0' },\n    { option: '-vf', argument: 'crop=in_w:in_h-72:0:0,scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,setsar=1' },\n    { option: '-c:v', argument: 'libx264' },\n    { option: '-preset', argument: 'veryfast' },\n    { option: '-crf', argument: '20' },\n    { option: '-pix_fmt', argument: 'yuv420p' },\n    { option: '-c:a', argument: 'aac' },\n    { option: '-af', argument: 'apad' },\n    { option: '-t', argument: String(plan.length) }\n  ] } ]\n};\nreturn { json: { body: JSON.stringify(body), index: plan.index } };",
+    "jsCode": "// ffmpeg compose: clip video + VO audio, pad audio to clip length\nconst clip = $json.response;\nconst plan = $('Scene plan').all()[$itemIndex].json;\nconst body = {\n  inputs: [ { file_url: clip }, { file_url: plan.audio_url } ],\n  outputs: [ { options: [\n    { option: '-map', argument: '0:v:0' },\n    { option: '-map', argument: '1:a:0' },\n    { option: '-vf', argument: 'crop=in_w:in_h-96:0:0,scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,setsar=1' },\n    { option: '-c:v', argument: 'libx264' },\n    { option: '-preset', argument: 'veryfast' },\n    { option: '-crf', argument: '20' },\n    { option: '-pix_fmt', argument: 'yuv420p' },\n    { option: '-c:a', argument: 'aac' },\n    { option: '-af', argument: 'apad' },\n    { option: '-t', argument: String(plan.length) }\n  ] } ]\n};\nreturn { json: { body: JSON.stringify(body), index: plan.index } };",
     "mode": "runOnceForEachItem"
    }
   },
@@ -376,7 +376,7 @@
    ],
    "parameters": {
     "method": "POST",
-    "url": "https://YOUR-NCA-HOST/v1/ffmpeg/compose",
+    "url": "https://nca.skynetjoe.com/v1/ffmpeg/compose",
     "authentication": "genericCredentialType",
     "genericAuthType": "httpHeaderAuth",
     "sendBody": true,
@@ -421,7 +421,7 @@
    ],
    "parameters": {
     "method": "POST",
-    "url": "https://YOUR-NCA-HOST/v1/video/concatenate",
+    "url": "https://nca.skynetjoe.com/v1/video/concatenate",
     "authentication": "genericCredentialType",
     "genericAuthType": "httpHeaderAuth",
     "sendBody": true,
@@ -459,7 +459,7 @@
    ],
    "parameters": {
     "method": "POST",
-    "url": "https://YOUR-NCA-HOST/v1/video/caption",
+    "url": "https://nca.skynetjoe.com/v1/video/caption",
     "authentication": "genericCredentialType",
     "genericAuthType": "httpHeaderAuth",
     "sendBody": true,
@@ -497,8 +497,8 @@
     300
    ],
    "parameters": {
-    "fromEmail": "n8n <you@example.com>",
-    "toEmail": "you@example.com",
+    "fromEmail": "SkynetLabs <waseem@skynetlabsai.com>",
+    "toEmail": "waseem@skynetjoe.com",
     "subject": "=Short ready: {{ $json.title }}",
     "emailFormat": "text",
     "text": "=Final (captioned): {{ $json.final_url }}\nNo captions: {{ $json.uncaptioned_url }}\n\nTitle: {{ $json.title }}\n\n{{ $json.description }}\n\nTags: {{ ($json.tags || []).join(', ') }}\n\nFiles expire in 14 days. Download, then upload to YouTube - or connect the YouTube node and let it post.",
