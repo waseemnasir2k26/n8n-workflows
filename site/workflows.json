@@ -5,14 +5,14 @@
       "slug": "speed-to-lead",
       "title": "Speed-to-lead (simulated demo) - AI dispatcher texts back in seconds, qualifies, books a visit window",
       "status": "live",
-      "video_url": null,
+      "video_url": "https://youtu.be/-lEQYzTgI5o",
       "json_url": "https://github.com/waseemnasir2k26/n8n-workflows/tree/main/workflows/02-speed-to-lead"
     },
     {
       "slug": "shorts-factory",
       "title": "Shorts factory (SF-01) - topic in, captioned 9:16 Short out",
       "status": "live",
-      "video_url": null,
+      "video_url": "https://youtu.be/5p7IYgR-c2E",
       "json_url": "https://github.com/waseemnasir2k26/n8n-workflows/tree/main/workflows/01-shorts-factory"
     },
     {
