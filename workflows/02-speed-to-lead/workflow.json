@@ -1,0 +1,489 @@
+{
+ "name": "Speed-to-Lead (simulated demo)",
+ "nodes": [
+  {
+   "name": "Web Lead In",
+   "type": "n8n-nodes-base.webhook",
+   "typeVersion": 2,
+   "position": [
+    -260,
+    -200
+   ],
+   "parameters": {
+    "httpMethod": "POST",
+    "path": "demo/lead",
+    "responseMode": "responseNode",
+    "options": {}
+   },
+   "webhookId": "demo-lead-hook"
+  },
+  {
+   "name": "Clean Lead",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    -40,
+    -200
+   ],
+   "parameters": {
+    "jsCode": "\n// Public endpoint: never trust the body. Clamp everything, drop anything weird.\nconst b = $json.body || {};\nconst s = (v, n) => String(v == null ? '' : v).replace(/[\\u0000-\\u001f]/g, ' ').trim().slice(0, n);\nconst name = s(b.name, 60) || 'there';\nconst out = {\n  name: name.split(/\\s+/)[0],\n  phone: s(b.phone, 30),\n  city: s(b.city, 60) || 'your area',\n  issue: s(b.issue, 400) || 'no cooling',\n};\nif (!out.issue) throw new Error('issue required');\nreturn [{ json: out }];\n"
+   }
+  },
+  {
+   "name": "Create Session",
+   "type": "n8n-nodes-base.postgres",
+   "typeVersion": 2.7,
+   "position": [
+    180,
+    -200
+   ],
+   "parameters": {
+    "operation": "executeQuery",
+    "query": "INSERT INTO demo_sessions (token, name, phone, city, issue) VALUES (md5(random()::text || clock_timestamp()::text), $1, $2, $3, $4) RETURNING id, token, name, city, issue;",
+    "options": {
+     "queryReplacement": "={{ [ $json.name, $json.phone, $json.city, $json.issue ] }}"
+    }
+   },
+   "credentials": {
+    "postgres": {
+     "id": "REPLACE_ME",
+     "name": "REPLACE_ME"
+    }
+   }
+  },
+  {
+   "name": "AI First Text",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.4,
+   "position": [
+    400,
+    -200
+   ],
+   "parameters": {
+    "method": "POST",
+    "url": "https://api.anthropic.com/v1/messages",
+    "authentication": "genericCredentialType",
+    "genericAuthType": "httpHeaderAuth",
+    "sendHeaders": true,
+    "headerParameters": {
+     "parameters": [
+      {
+       "name": "anthropic-version",
+       "value": "2023-06-01"
+      },
+      {
+       "name": "content-type",
+       "value": "application/json"
+      }
+     ]
+    },
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={{ JSON.stringify({\n  model: ($env.CLASSIFIER_MODEL || 'claude-haiku-4-5'),\n  max_tokens: 200,\n  system: \"You are the AI dispatcher for Lone Star Air, a busy HVAC company (this is a DEMO company). A web lead just came in and you are sending the FIRST text message back, within seconds, before any human sees it.\\\\nRules: under 320 characters. Warm, plain, human - a good dispatcher, not a bot. Use the customer's first name. Reference their stated problem in your own words. Ask exactly ONE question that moves toward booking (is this an emergency, or is a same-week visit fine?). Never invent prices, warranties, technician names or arrival times. No emoji. No links. Sign off exactly as '- Lone Star Air' - never a placeholder like [Company Name].\",\n  messages: [{ role: 'user', content: 'New web lead.\\nName: ' + $json.name + '\\nCity: ' + $json.city + '\\nWhat they typed: \"' + $json.issue + '\"' }]\n}) }}",
+    "options": {
+     "timeout": 30000
+    }
+   },
+   "retryOnFail": true,
+   "maxTries": 2,
+   "credentials": {
+    "httpHeaderAuth": {
+     "id": "REPLACE_ME",
+     "name": "REPLACE_ME"
+    }
+   }
+  },
+  {
+   "name": "Save AI Text",
+   "type": "n8n-nodes-base.postgres",
+   "typeVersion": 2.7,
+   "position": [
+    620,
+    -200
+   ],
+   "parameters": {
+    "operation": "executeQuery",
+    "options": {
+     "queryReplacement": "={{ [ $('Create Session').item.json.id, $json.content[0].text ] }}"
+    },
+    "query": "INSERT INTO demo_messages (session_id, sender, body, latency_ms) VALUES (($1)::bigint, 'ai', $2, 4000) RETURNING id;"
+   },
+   "credentials": {
+    "postgres": {
+     "id": "REPLACE_ME",
+     "name": "REPLACE_ME"
+    }
+   }
+  },
+  {
+   "name": "Respond Lead",
+   "type": "n8n-nodes-base.respondToWebhook",
+   "typeVersion": 1.1,
+   "position": [
+    840,
+    -200
+   ],
+   "parameters": {
+    "respondWith": "json",
+    "responseBody": "={{ JSON.stringify({ ok: true, token: $('Create Session').item.json.token, message: $('AI First Text').item.json.content[0].text }) }}",
+    "options": {}
+   }
+  },
+  {
+   "name": "Homeowner Reply In",
+   "type": "n8n-nodes-base.webhook",
+   "typeVersion": 2,
+   "position": [
+    -260,
+    60
+   ],
+   "parameters": {
+    "httpMethod": "POST",
+    "path": "demo/reply",
+    "responseMode": "responseNode",
+    "options": {}
+   },
+   "webhookId": "demo-reply-hook"
+  },
+  {
+   "name": "Clean Reply",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    -40,
+    60
+   ],
+   "parameters": {
+    "jsCode": "\nconst b = $json.body || {};\nconst token = String(b.token || '').replace(/[^a-f0-9]/gi, '').slice(0, 64);\nconst text = String(b.text || '').replace(/[\\u0000-\\u001f]/g, ' ').trim().slice(0, 400);\nif (!token || !text) throw new Error('token and text required');\nreturn [{ json: { token, text } }];\n"
+   }
+  },
+  {
+   "name": "Log Lead Text",
+   "type": "n8n-nodes-base.postgres",
+   "typeVersion": 2.7,
+   "position": [
+    180,
+    60
+   ],
+   "parameters": {
+    "operation": "executeQuery",
+    "options": {
+     "queryReplacement": "={{ [ $json.token, $json.text ] }}"
+    },
+    "query": "WITH s AS (SELECT id, city FROM demo_sessions WHERE token = $1), ins AS (INSERT INTO demo_messages (session_id, sender, body)         SELECT id, 'lead', $2 FROM s RETURNING session_id) SELECT s.id AS session_id, s.city,   COALESCE((SELECT string_agg(CASE WHEN sender='ai' THEN 'Dispatcher: '      ELSE 'Customer: ' END || body, E'\\n' ORDER BY id)    FROM demo_messages m WHERE m.session_id = s.id), '')   || E'\\nCustomer: ' || $2 AS transcript FROM s;"
+   },
+   "credentials": {
+    "postgres": {
+     "id": "REPLACE_ME",
+     "name": "REPLACE_ME"
+    }
+   }
+  },
+  {
+   "name": "AI Qualify + Book",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.4,
+   "position": [
+    400,
+    60
+   ],
+   "parameters": {
+    "method": "POST",
+    "url": "https://api.anthropic.com/v1/messages",
+    "authentication": "genericCredentialType",
+    "genericAuthType": "httpHeaderAuth",
+    "sendHeaders": true,
+    "headerParameters": {
+     "parameters": [
+      {
+       "name": "anthropic-version",
+       "value": "2023-06-01"
+      },
+      {
+       "name": "content-type",
+       "value": "application/json"
+      }
+     ]
+    },
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={{ JSON.stringify({\n  model: ($env.CLAUDE_MODEL_SONNET || 'claude-opus-5'),\n  max_tokens: 300,\n  system: \"You are the AI dispatcher for Lone Star Air, a busy HVAC company (DEMO), continuing a text conversation with a homeowner. Decide whether you now know enough to book a visit: you need (a) the problem, and (b) urgency or a preferred time.\\\\nReply ONLY with minified JSON, no markdown fence:\\\\n{\\\"message\\\": \\\"<the text to send, under 320 chars>\\\", \\\"book\\\": true|false, \\\"job_type\\\": \\\"<short label>\\\", \\\"slot_hint\\\": \\\"<one of: today_pm, tomorrow_am, tomorrow_pm, this_week>\\\"}\\\\nSet book=true as soon as you can propose a concrete visit window. When booking, state the window in the message and say a technician will confirm. Never invent prices or a technician's name. No emoji. No links. Sign off exactly as '- Lone Star Air' - never a placeholder like [Company Name].\",\n  messages: [{ role: 'user', content: 'Conversation so far:\\n' + $json.transcript + '\\n\\nCustomer city: ' + $json.city + '. Reply now.' }]\n}) }}",
+    "options": {
+     "timeout": 30000
+    }
+   },
+   "retryOnFail": true,
+   "maxTries": 2,
+   "credentials": {
+    "httpHeaderAuth": {
+     "id": "REPLACE_ME",
+     "name": "REPLACE_ME"
+    }
+   }
+  },
+  {
+   "name": "Parse Decision",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    620,
+    60
+   ],
+   "parameters": {
+    "jsCode": "\n// The model is told to answer with bare JSON. If it ever wraps it in prose or a\n// fence, salvage the object instead of failing the demo in front of a prospect.\nconst raw = String($json.content?.[0]?.text || '').trim();\nlet d = null;\ntry { d = JSON.parse(raw); } catch (e) {\n  const m = raw.match(/\\{[\\s\\S]*\\}/);\n  if (m) { try { d = JSON.parse(m[0]); } catch (e2) { d = null; } }\n}\nif (!d || !d.message) d = { message: raw.slice(0, 320) || \"Got it - a technician will call you shortly to confirm a time.\", book: false };\n// The window is decided HERE and shipped as a finished label. Letting the browser\n// re-derive it from a UTC timestamp made the card say 12-4pm while the text said\n// 8-12 - a prospect reads that as the system contradicting itself.\nconst hint = String(d.slot_hint || 'tomorrow_am');\nconst WINDOWS = {\n  today_pm:    { addDays: 0, hour: 13, label: '12:00pm - 4:00pm' },\n  tomorrow_am: { addDays: 1, hour: 9,  label: '8:00am - 12:00pm' },\n  tomorrow_pm: { addDays: 1, hour: 13, label: '12:00pm - 4:00pm' },\n  this_week:   { addDays: 2, hour: 9,  label: '8:00am - 12:00pm' },\n};\nconst w = WINDOWS[hint] || WINDOWS.tomorrow_am;\nconst slot = new Date();\nslot.setDate(slot.getDate() + w.addDays);\nslot.setHours(w.hour, 0, 0, 0);\nconst DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];\nconst MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];\nconst dayWord = w.addDays === 0 ? 'Today' : (w.addDays === 1 ? 'Tomorrow' : DAYS[slot.getDay()]);\nconst slot_label = dayWord + ', ' + MONTHS[slot.getMonth()] + ' ' + slot.getDate() + ' - ' + w.label;\nreturn [{ json: {\n  session_id: $('Log Lead Text').item.json.session_id,\n  message: String(d.message).slice(0, 320),\n  book: !!d.book,\n  job_type: String(d.job_type || 'HVAC service call').slice(0, 60),\n  slot_at: slot.toISOString(),\n  slot_label,\n} }];\n"
+   }
+  },
+  {
+   "name": "Save AI Reply",
+   "type": "n8n-nodes-base.postgres",
+   "typeVersion": 2.7,
+   "position": [
+    840,
+    60
+   ],
+   "parameters": {
+    "operation": "executeQuery",
+    "options": {
+     "queryReplacement": "={{ [ $json.session_id, $json.message, $json.book, $json.job_type, $json.slot_at ] }}"
+    },
+    "query": "WITH m AS (INSERT INTO demo_messages (session_id, sender, body, latency_ms)            VALUES (($1)::bigint, 'ai', $2, 3000) RETURNING session_id), b AS (INSERT INTO demo_bookings (session_id, job_type, tech, slot_at)       SELECT ($1)::bigint, $4, 'next available technician', ($5)::timestamptz       WHERE ($3)::boolean       ON CONFLICT (session_id) DO NOTHING RETURNING id, slot_at, job_type) UPDATE demo_sessions SET booked_at = CASE WHEN ($3)::boolean   THEN COALESCE(booked_at, now()) ELSE booked_at END WHERE id = ($1)::bigint RETURNING id;"
+   },
+   "credentials": {
+    "postgres": {
+     "id": "REPLACE_ME",
+     "name": "REPLACE_ME"
+    }
+   }
+  },
+  {
+   "name": "Respond Reply",
+   "type": "n8n-nodes-base.respondToWebhook",
+   "typeVersion": 1.1,
+   "position": [
+    1060,
+    60
+   ],
+   "parameters": {
+    "respondWith": "json",
+    "responseBody": "={{ JSON.stringify({ ok: true, message: $('Parse Decision').item.json.message, booked: $('Parse Decision').item.json.book, job_type: $('Parse Decision').item.json.job_type, slot_label: $('Parse Decision').item.json.slot_label, slot_at: $('Parse Decision').item.json.slot_at }) }}",
+    "options": {}
+   }
+  },
+  {
+   "name": "State In",
+   "type": "n8n-nodes-base.webhook",
+   "typeVersion": 2,
+   "position": [
+    -260,
+    320
+   ],
+   "parameters": {
+    "httpMethod": "GET",
+    "path": "demo/state",
+    "responseMode": "responseNode",
+    "options": {}
+   },
+   "webhookId": "demo-state-hook"
+  },
+  {
+   "name": "Read State",
+   "type": "n8n-nodes-base.postgres",
+   "typeVersion": 2.7,
+   "position": [
+    -40,
+    320
+   ],
+   "parameters": {
+    "operation": "executeQuery",
+    "options": {
+     "queryReplacement": "={{ [ String($json.query?.token || '').replace(/[^a-f0-9]/gi,'').slice(0,64) ] }}"
+    },
+    "query": "SELECT json_build_object(  'messages', COALESCE((SELECT json_agg(json_build_object(      'sender', sender, 'body', body,       'at', to_char(created_at, 'HH24:MI:SS')) ORDER BY id)     FROM demo_messages WHERE session_id = s.id), '[]'::json),   'booking', (SELECT json_build_object('job', job_type, 'tech', tech,       'slot', to_char(slot_at, 'Dy DD Mon, HH24:MI'))     FROM demo_bookings WHERE session_id = s.id)) AS state FROM demo_sessions s WHERE s.token = $1;"
+   },
+   "credentials": {
+    "postgres": {
+     "id": "REPLACE_ME",
+     "name": "REPLACE_ME"
+    }
+   }
+  },
+  {
+   "name": "Respond State",
+   "type": "n8n-nodes-base.respondToWebhook",
+   "typeVersion": 1.1,
+   "position": [
+    180,
+    320
+   ],
+   "parameters": {
+    "respondWith": "json",
+    "responseBody": "={{ JSON.stringify($json.state || {messages: [], booking: null}) }}",
+    "options": {}
+   }
+  },
+  {
+   "name": "Sticky",
+   "type": "n8n-nodes-base.stickyNote",
+   "typeVersion": 1,
+   "position": [
+    -280,
+    -520
+   ],
+   "parameters": {
+    "width": 900,
+    "height": 240,
+    "color": 6,
+    "content": "## LG-DEMO - simulated Speed-to-Lead\nThe asset E1 promises. Public page: **https://YOUR-N8N/demo/**\n\n`POST /webhook/demo/lead` form -> AI first text  ·  `POST /webhook/demo/reply` homeowner replies -> AI qualifies + books  ·  `GET /webhook/demo/state?token=` page polling\n\nOwn tables (`demo_*`). Touches NOTHING in the outbound estate - no sending, no contacts, no send_queue. Inputs are clamped because these endpoints are public. The page is labelled SIMULATED; the model is instructed never to invent prices, warranties or technician names."
+   }
+  }
+ ],
+ "connections": {
+  "Web Lead In": {
+   "main": [
+    [
+     {
+      "node": "Clean Lead",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Clean Lead": {
+   "main": [
+    [
+     {
+      "node": "Create Session",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Create Session": {
+   "main": [
+    [
+     {
+      "node": "AI First Text",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "AI First Text": {
+   "main": [
+    [
+     {
+      "node": "Save AI Text",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Save AI Text": {
+   "main": [
+    [
+     {
+      "node": "Respond Lead",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Homeowner Reply In": {
+   "main": [
+    [
+     {
+      "node": "Clean Reply",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Clean Reply": {
+   "main": [
+    [
+     {
+      "node": "Log Lead Text",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Log Lead Text": {
+   "main": [
+    [
+     {
+      "node": "AI Qualify + Book",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "AI Qualify + Book": {
+   "main": [
+    [
+     {
+      "node": "Parse Decision",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Parse Decision": {
+   "main": [
+    [
+     {
+      "node": "Save AI Reply",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Save AI Reply": {
+   "main": [
+    [
+     {
+      "node": "Respond Reply",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "State In": {
+   "main": [
+    [
+     {
+      "node": "Read State",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Read State": {
+   "main": [
+    [
+     {
+      "node": "Respond State",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  }
+ },
+ "settings": {
+  "executionOrder": "v1",
+  "executionTimeout": 300
+ }
+}
