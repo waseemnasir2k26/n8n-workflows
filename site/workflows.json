@@ -1,6 +1,13 @@
 {
-  "updated": "2026-09-17",
+  "updated": "2026-09-18",
   "workflows": [
+    {
+      "slug": "maps-lead-harvest",
+      "title": "Maps lead harvest (Apify -> Postgres) - trade + city in, deduped lead table with a run_id out",
+      "status": "live",
+      "video_url": null,
+      "json_url": "https://github.com/waseemnasir2k26/n8n-workflows/tree/main/workflows/03-maps-lead-harvest"
+    },
     {
       "slug": "speed-to-lead",
       "title": "Speed-to-lead (simulated demo) - AI dispatcher texts back in seconds, qualifies, books a visit window",

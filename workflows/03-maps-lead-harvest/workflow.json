@@ -1,0 +1,573 @@
+{
+  "name": "03 Maps Lead Harvest (Apify -> Postgres)",
+  "nodes": [
+    {
+      "id": "ep03-trigger",
+      "name": "Click to run",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "ep03-inputs",
+      "name": "Inputs",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        220,
+        300
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "i1",
+              "name": "trade",
+              "type": "string",
+              "value": "roofing contractors"
+            },
+            {
+              "id": "i2",
+              "name": "city",
+              "type": "string",
+              "value": "Denver"
+            },
+            {
+              "id": "i3",
+              "name": "state",
+              "type": "string",
+              "value": "CO"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "ep03-config",
+      "name": "Config",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        440,
+        300
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "c1",
+              "name": "query",
+              "type": "string",
+              "value": "={{ $json.trade + ' ' + $json.city }}"
+            },
+            {
+              "id": "c2",
+              "name": "run_id",
+              "type": "string",
+              "value": "={{ $now.toFormat('yyyyLLdd-HHmm') }}"
+            },
+            {
+              "id": "c3",
+              "name": "started_at",
+              "type": "string",
+              "value": "={{ $now.toISO() }}"
+            },
+            {
+              "id": "c4",
+              "name": "maxResults",
+              "type": "number",
+              "value": 100
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      }
+    },
+    {
+      "id": "ep03-start",
+      "name": "Start Apify Actor (async)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        660,
+        300
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.apify.com/v2/acts/compass~crawler-google-places/runs",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ searchStringsArray: [$json.query], locationQuery: $json.city + ', ' + $json.state, maxCrawledPlacesPerSearch: $('Config').item.json.maxResults, language: 'en', countryCode: 'us' }) }}",
+        "options": {
+          "timeout": 60000
+        },
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpQueryAuth"
+      },
+      "credentials": {
+        "httpQueryAuth": {
+          "id": "REPLACE_ME",
+          "name": "Apify Token (REPLACE_ME)"
+        }
+      }
+    },
+    {
+      "id": "ep03-prep",
+      "name": "Prep Poll",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        880,
+        300
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "p1",
+              "name": "runId",
+              "type": "string",
+              "value": "={{ $json.data.id }}"
+            },
+            {
+              "id": "p2",
+              "name": "datasetId",
+              "type": "string",
+              "value": "={{ $json.data.defaultDatasetId }}"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "ep03-wait",
+      "name": "Wait 30s",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        1100,
+        300
+      ],
+      "webhookId": "ep03-poll-wait",
+      "parameters": {
+        "resume": "timeInterval",
+        "amount": 30,
+        "unit": "seconds"
+      }
+    },
+    {
+      "id": "ep03-poll",
+      "name": "Poll Run Status",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1320,
+        300
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "=https://api.apify.com/v2/actor-runs/{{ $('Prep Poll').item.json.runId }}",
+        "options": {
+          "timeout": 30000
+        },
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpQueryAuth"
+      },
+      "credentials": {
+        "httpQueryAuth": {
+          "id": "REPLACE_ME",
+          "name": "Apify Token (REPLACE_ME)"
+        }
+      }
+    },
+    {
+      "id": "ep03-check",
+      "name": "Check Finished",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1540,
+        300
+      ],
+      "parameters": {
+        "jsCode": "// Bounded poll: $runIndex increments each loop pass through this node.\nconst root = $input.first().json;\nconst d = root.data || root;\nconst status = d.status || 'UNKNOWN';\nconst attempt = $runIndex + 1;\nconst terminal = ['SUCCEEDED', 'FAILED', 'TIMED-OUT', 'ABORTED'].includes(status);\nconst giveUp = attempt >= 20; // ~20 polls * 30s = ~10 min ceiling\nreturn [{ json: {\n  status,\n  datasetId: d.defaultDatasetId || $('Prep Poll').item.json.datasetId,\n  attempt,\n  succeeded: status === 'SUCCEEDED',\n  proceed: terminal || giveUp\n} }];"
+      }
+    },
+    {
+      "id": "ep03-if-finished",
+      "name": "Run Finished?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1760,
+        300
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "cf1",
+              "leftValue": "={{ $json.proceed }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "ep03-if-succeeded",
+      "name": "Run Succeeded?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1980,
+        300
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "rs1",
+              "leftValue": "={{ $json.succeeded }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "ep03-failed",
+      "name": "Run failed",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        2200,
+        480
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "ep03-fetch",
+      "name": "Fetch Dataset Items",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        2200,
+        300
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "=https://api.apify.com/v2/datasets/{{ $json.datasetId }}/items?clean=true&format=json",
+        "options": {
+          "timeout": 60000,
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        },
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpQueryAuth"
+      },
+      "credentials": {
+        "httpQueryAuth": {
+          "id": "REPLACE_ME",
+          "name": "Apify Token (REPLACE_ME)"
+        }
+      }
+    },
+    {
+      "id": "ep03-normalize",
+      "name": "Normalize + Dedupe",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2420,
+        300
+      ],
+      "parameters": {
+        "jsCode": "// Flatten whatever shape the dataset endpoint returns into one row per place,\n// clean phone + website, dedupe on place_id, and carry the counts the\n// execution panel should show (rows_seen before dedupe, rows_written after).\nconst cfg = $('Config').first().json;\n\nlet raw = [];\nfor (const it of $input.all()) {\n  const b = it.json;\n  if (Array.isArray(b)) raw.push(...b);\n  else if (b && Array.isArray(b.data)) raw.push(...b.data);\n  else if (b) raw.push(b);\n}\n\n// Digits only; anything shorter than 10 digits is not a dialable number.\nfunction cleanPhone(v) {\n  const digits = String(v || '').replace(/[^0-9]/g, '');\n  return digits.length >= 10 ? digits : null;\n}\n\n// Host only, via string ops. The Code sandbox has no URL() / URLSearchParams.\nfunction cleanHost(v) {\n  let w = String(v || '').trim();\n  if (!w) return null;\n  w = w.replace(/^https?:\\/\\//i, '');\n  w = w.split('/')[0].split('?')[0].split('#')[0];\n  w = w.split('@').pop().split(':')[0];\n  w = w.replace(/^www\\./i, '').toLowerCase();\n  return w || null;\n}\n\nconst candidates = raw\n  .filter(x => x && x.placeId)\n  .filter(x => {\n    // category gate: never harvest obvious non-operators\n    const cat = String(x.categoryName || '').toLowerCase();\n    return !/(non.?profit|supplier|wholesal|distribut|charity|store)/.test(cat);\n  });\n\nconst rows_seen = candidates.length;\nconst seen = new Set();\nconst out = [];\nfor (const x of candidates) {\n  const id = String(x.placeId);\n  if (seen.has(id)) continue; // same place on two result pages lands once\n  seen.add(id);\n  out.push({\n    place_id: id,\n    name: x.title || x.name || 'Unknown',\n    category: x.categoryName || null,\n    city: x.city || cfg.city || null,\n    state: x.state || cfg.state || null,\n    phone: cleanPhone(x.phone || x.phoneUnformatted),\n    website: cleanHost(x.website),\n    has_website: !!x.website,\n    maps_rating: (x.totalScore ?? null),\n    review_count: (x.reviewsCount ?? null),\n    run_id: cfg.run_id\n  });\n}\nconst rows_written = out.length;\nif (rows_written === 0) throw new Error('Apify returned 0 usable places for query \"' + cfg.query + '\"');\nreturn out.map(r => ({ json: Object.assign({ rows_seen, rows_written }, r) }));"
+      }
+    },
+    {
+      "id": "ep03-upsert",
+      "name": "UPSERT ep03_leads",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [
+        2640,
+        300
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO ep03_leads (place_id, name, category, city, state, phone, website, has_website, maps_rating, review_count, run_id) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) ON CONFLICT (place_id) DO UPDATE SET name=EXCLUDED.name, category=EXCLUDED.category, city=EXCLUDED.city, state=EXCLUDED.state, phone=EXCLUDED.phone, website=EXCLUDED.website, has_website=EXCLUDED.has_website, maps_rating=EXCLUDED.maps_rating, review_count=EXCLUDED.review_count, run_id=EXCLUDED.run_id, seen_at=now() RETURNING place_id;",
+        "options": {
+          "queryReplacement": "={{ [ $json.place_id, $json.name, $json.category, $json.city, $json.state, $json.phone, $json.website, $json.has_website, $json.maps_rating, $json.review_count, $json.run_id ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "REPLACE_ME",
+          "name": "Postgres (REPLACE_ME)"
+        }
+      }
+    },
+    {
+      "id": "ep03-summary",
+      "name": "Run Summary",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2860,
+        300
+      ],
+      "parameters": {
+        "jsCode": "// One summary item, read straight off the execution panel.\n// seconds = wall clock from the Config node (started_at) to now.\nconst cfg = $('Config').first().json;\nconst norm = $('Normalize + Dedupe').first().json;\nconst upserted = $input.all().length; // one RETURNING row per UPSERT\nconst started = new Date(cfg.started_at).getTime();\nconst seconds = Math.round((Date.now() - started) / 100) / 10;\nreturn [{ json: {\n  run_id: cfg.run_id,\n  query: cfg.query,\n  rows_seen: norm.rows_seen,\n  rows_written: upserted,\n  rows_deduped: norm.rows_seen - upserted,\n  seconds\n} }];"
+      }
+    },
+    {
+      "id": "ep03-sticky-1",
+      "name": "Sticky Trigger",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -20,
+        60
+      ],
+      "parameters": {
+        "width": 620,
+        "height": 200,
+        "color": 4,
+        "content": "## 1 - Trigger + Config\nClick Execute. Edit **Inputs**: `trade`, `city`, `state`. **Config** builds `query` = trade + city, stamps `run_id` (yyyyLLdd-HHmm) and `started_at`, and caps `maxResults` at 100 so one run cannot burn credit. Config travels as data because n8n 2.x Code nodes cannot read environment variables."
+      }
+    },
+    {
+      "id": "ep03-sticky-2",
+      "name": "Sticky Async Poll",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        640,
+        60
+      ],
+      "parameters": {
+        "width": 1480,
+        "height": 200,
+        "color": 5,
+        "content": "## 2 - Apify async + bounded poll\nStart `compass/crawler-google-places` ASYNC via `/runs` (run-sync times out past 300 s). Then **Wait 30s -> Poll Run Status -> Check Finished -> Run Finished?**; not terminal = loop back to Wait. Capped at 20 polls (~10 min) via `$runIndex`. **Run Succeeded?** only fetches the dataset on SUCCEEDED; FAILED / TIMED-OUT / ABORTED / poll cap ends at **Run failed**."
+      }
+    },
+    {
+      "id": "ep03-sticky-3",
+      "name": "Sticky Persist",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        2180,
+        60
+      ],
+      "parameters": {
+        "width": 880,
+        "height": 200,
+        "color": 3,
+        "content": "## 3 - Normalize + UPSERT + summary\nFetch dataset -> **Normalize + Dedupe** (phone digits-only, website host-only, dedupe on `place_id` across pages) -> **UPSERT ep03_leads** ON CONFLICT (place_id), every row stamped with `run_id` -> **Run Summary** emits `rows_seen` / `rows_written` / `seconds`. Re-running the same query = zero duplicate rows. Google Maps public business data only. Free workflow JSON (MIT): github.com/waseemnasir2k26/n8n-workflows"
+      }
+    }
+  ],
+  "connections": {
+    "Click to run": {
+      "main": [
+        [
+          {
+            "node": "Inputs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Inputs": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config": {
+      "main": [
+        [
+          {
+            "node": "Start Apify Actor (async)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Start Apify Actor (async)": {
+      "main": [
+        [
+          {
+            "node": "Prep Poll",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prep Poll": {
+      "main": [
+        [
+          {
+            "node": "Wait 30s",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait 30s": {
+      "main": [
+        [
+          {
+            "node": "Poll Run Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Poll Run Status": {
+      "main": [
+        [
+          {
+            "node": "Check Finished",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Finished": {
+      "main": [
+        [
+          {
+            "node": "Run Finished?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run Finished?": {
+      "main": [
+        [
+          {
+            "node": "Run Succeeded?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Wait 30s",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run Succeeded?": {
+      "main": [
+        [
+          {
+            "node": "Fetch Dataset Items",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Run failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Dataset Items": {
+      "main": [
+        [
+          {
+            "node": "Normalize + Dedupe",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize + Dedupe": {
+      "main": [
+        [
+          {
+            "node": "UPSERT ep03_leads",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "UPSERT ep03_leads": {
+      "main": [
+        [
+          {
+            "node": "Run Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "executionTimeout": 900
+  }
+}
