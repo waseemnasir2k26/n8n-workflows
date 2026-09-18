@@ -1,0 +1,142 @@
+[
+  {
+    "message_id": "q01-meridian-khi-jea@quotes.example",
+    "from": "Ayesha Rahim <ayesha@meridiantextiles.example>",
+    "subject": "Quote request - 1x40HC Karachi to Jebel Ali",
+    "received_at": "2026-09-14T08:12:00+05:00",
+    "body": "Hello,\n\nWe need a rate for one 40ft high cube from Karachi (KICT) to Jebel Ali. Cargo is finished cotton bedsheets on 20 pallets, gross weight 18,500 kg. Terms FOB Karachi. The container must be gated in by 5 October 2026 at the latest.\n\nPlease quote ocean freight plus destination THC.\n\nRegards,\nAyesha Rahim\nMeridian Textiles, Karachi"
+  },
+  {
+    "message_id": "q02-huanjiang-sha-rtm@quotes.example",
+    "from": "Li Wen <liwen@huanjiang-machinery.example>",
+    "subject": "RFQ: 2 x 20GP Shanghai - Rotterdam, machine parts",
+    "received_at": "2026-09-14T09:40:00+08:00",
+    "body": "Dear team,\n\nRFQ for 2 x 20GP Shanghai to Rotterdam. Contents: CNC spindle assemblies, palletised, 24 pallets at 120 x 80 x 110 cm. Total gross 22,000 kg. Buyer wants CIF Rotterdam. Ready to ship end of October.\n\nThanks,\nLi Wen\nHuanjiang Machinery Co."
+  },
+  {
+    "message_id": "q03-saffron-mundra-fxt@quotes.example",
+    "from": "Rohan Mehta <rohan@saffronexports.example>",
+    "subject": "LCL Mundra to Felixstowe - 6 pallets spices",
+    "received_at": "2026-09-14T11:05:00+05:30",
+    "body": "Hi,\n\nPlease quote LCL from Mundra to Felixstowe. 6 pallets, each 120 x 100 x 120 cm, total 3,200 kg. Cargo: packaged spices (turmeric, cumin) in cartons. Ex works our Ahmedabad warehouse. We need it delivered before Diwali.\n\nRohan\nSaffron Exports Pvt"
+  },
+  {
+    "message_id": "q04-zephyr-lhe-fra@quotes.example",
+    "from": "Bilal Hussain <bilal@zephyrapparel.example>",
+    "subject": "Air freight Lahore to Frankfurt - samples",
+    "received_at": "2026-09-15T07:55:00+05:00",
+    "body": "Salam,\n\nUrgent air shipment: 14 cartons of garment samples, each carton 60 x 40 x 40 cm, total 380 kg. Lahore airport to Frankfurt. Delivered to the buyer door, DAP Frankfurt. This has to reach them before Eid, no exceptions.\n\nBilal Hussain\nZephyr Apparel"
+  },
+  {
+    "message_id": "q05-saigon-sgn-lax@quotes.example",
+    "from": "Thao Nguyen <thao@saigonwoodcraft.example>",
+    "subject": "Quotation needed: furniture LCL to Los Angeles",
+    "received_at": "2026-09-15T10:20:00+07:00",
+    "body": "Hello,\n\nWe have 8 wooden crates of teak furniture going from Ho Chi Minh City (Cat Lai) to Los Angeles. Each crate measures 48 x 40 x 36 inches. Total weight 4,400 lb. FOB Ho Chi Minh. Shipping mid November is fine.\n\nBest,\nThao\nSaigon Woodcraft"
+  },
+  {
+    "message_id": "q06-dhakaknit-cgp-ham@quotes.example",
+    "from": "Farhana Akter <farhana@dhakaknit.example>",
+    "subject": "Rate for 40ft Chittagong to Hamburg",
+    "received_at": "2026-09-15T12:30:00+06:00",
+    "body": "Dear Sir/Madam,\n\nKindly send your best rate for one 40ft container Chittagong to Hamburg, knitwear in cartons, FOB Chittagong. Cargo readiness 15 November 2026.\n\nThank you,\nFarhana Akter\nDhaka Knit Collective"
+  },
+  {
+    "message_id": "q07-goldengrain-to-dubai@quotes.example",
+    "from": "Imran Qureshi <imran@goldengrainmills.example>",
+    "subject": "rice to dubai",
+    "received_at": "2026-09-15T14:10:00+05:00",
+    "body": "hi need quote for 2 containers of basmati rice to dubai jebel ali. 25 kg bags. cif. how soon can you ship?\n\nimran\ngolden grain mills"
+  },
+  {
+    "message_id": "q08-nusantara-jkt-syd@quotes.example",
+    "from": "Dewi Santoso <dewi@nusantaraseafood.example>",
+    "subject": "FW: FW: Re: reefer quote Jakarta - Sydney",
+    "received_at": "2026-09-16T08:00:00+07:00",
+    "body": "Hi, see the thread below, can you quote this? We need it moving in the 3rd week of November.\n\nDewi\n\n---------- Forwarded message ----------\nFrom: Budi Hartono <budi@nusantaraseafood.example>\nSubject: FW: Re: reefer quote Jakarta - Sydney\n\nForwarding to Dewi, she handles freight now.\n\n> On Mon, Sep 14, 2026, Budi Hartono wrote:\n> Sales confirmed: 1 x 20ft reefer, frozen shrimp, -18C, Jakarta (Tanjung Priok) to Sydney.\n> Gross weight 15,000 kg. Buyer terms CIF Sydney.\n>\n>> On Fri, Sep 11, 2026, Grace Tan wrote:\n>> Budi, can you check with the forwarder on reefer availability?\n>> Also ask about plug-in charges at destination.\n>>\n>>> Original enquiry from the buyer:\n>>> We would like to order frozen shrimp, please advise freight to Sydney."
+  },
+  {
+    "message_id": "q09-kilimani-nbo-lhr@quotes.example",
+    "from": "Grace Wanjiru <grace@kilimaniblooms.example>",
+    "subject": "Weekly flowers NBO-LHR",
+    "received_at": "2026-09-16T06:45:00+03:00",
+    "body": "Hello,\n\nWe ship cut roses weekly from Nairobi (JKIA) to London Heathrow. Next lot: 40 boxes, 100 x 40 x 30 cm each, 1,200 kg total. Terms CPT Heathrow. Needs to fly next Tuesday. Please quote per kg, and a weekly rate if you can.\n\nGrace\nKilimani Blooms"
+  },
+  {
+    "message_id": "q10-chengdu-ctu-dui@quotes.example",
+    "from": "Zhang Yu <zhangyu@chengdu-emobility.example>",
+    "subject": "Rail quote Chengdu to Duisburg, 2x40HC e-bikes",
+    "received_at": "2026-09-16T10:15:00+08:00",
+    "body": "Hello,\n\nPlease quote China-Europe rail, Chengdu to Duisburg, 2 x 40HC. Cargo: electric bicycles with lithium batteries (UN3171), 320 cartons per container, total gross weight 19,000 kg. Delivered DAP Duisburg terminal. Target arrival mid December.\n\nZhang Yu\nChengdu E-Mobility"
+  },
+  {
+    "message_id": "q11-faisal-car-dxb-khi@quotes.example",
+    "from": "Faisal <faisal.k@personalmail.example>",
+    "subject": "shipping a car",
+    "received_at": "2026-09-16T13:00:00+04:00",
+    "body": "Hi how much to ship a car from Dubai to Karachi? Its a 2019 Toyota Land Cruiser. Thanks"
+  },
+  {
+    "message_id": "q12-ceylonleaf-cmb-jea@quotes.example",
+    "from": "Nimal Perera <nimal@ceylonleaf.example>",
+    "subject": "LCL tea Colombo to Jebel Ali",
+    "received_at": "2026-09-16T15:30:00+05:30",
+    "body": "Dear team,\n\nLCL enquiry: 400 cartons of packaged black tea, carton size 40 x 30 x 30 cm, total gross 6,000 kg, Colombo to Jebel Ali, FOB Colombo. Must arrive by 20 October 2026.\n\nRegards,\nNimal Perera\nCeylon Leaf Traders"
+  },
+  {
+    "message_id": "q13-hanmi-pus-lgb@quotes.example",
+    "from": "Min-jun Park <mjpark@hanmiauto.example>",
+    "subject": "URGENT 3x40HC Busan - Long Beach",
+    "received_at": "2026-09-17T09:00:00+09:00",
+    "body": "Hi,\n\nUrgent: 3 x 40HC Busan to Long Beach, automotive brake components on pallets, total gross 60,000 kg across the three boxes. FCA Busan CY. Need this on the first available vessel, ASAP.\n\nMin-jun Park\nHanmi Auto Parts"
+  },
+  {
+    "message_id": "q14-marmara-ist-jfk@quotes.example",
+    "from": "Elif Kaya <elif@marmarastone.example>",
+    "subject": "Air freight quote, marble samples to New York",
+    "received_at": "2026-09-17T11:20:00+03:00",
+    "body": "Hello,\n\nWe need to fly 2 pallets of marble tile samples from Istanbul to New York JFK. Pallets are 120 x 80 x 150 cm, total 900 kg. Our customer wants DDP to their showroom in Brooklyn. Deadline: by Oct 15.\n\nElif Kaya\nMarmara Stone"
+  },
+  {
+    "message_id": "q15-cafezal-ssz-anr@quotes.example",
+    "from": "Lucas Ferreira <lucas@cafezalexports.example>",
+    "subject": "1x20 coffee Santos to Antwerp",
+    "received_at": "2026-09-17T14:05:00-03:00",
+    "body": "Hi,\n\nOne 20ft dry container, green coffee in 60 kg jute bags, 320 bags, gross 19,200 kg, Santos to Antwerp, FOB Santos. Latest departure before 30 November.\n\nObrigado,\nLucas\nCafezal Exports"
+  },
+  {
+    "message_id": "q16-kenrecon-mba-mun@quotes.example",
+    "from": "Peter Otieno <peter@kenrecon.example>",
+    "subject": "Used machine Mombasa to Mundra",
+    "received_at": "2026-09-17T16:40:00+03:00",
+    "body": "Hello,\n\nWe are sending one used printing press from Mombasa to Mundra. One wooden crate 300 x 200 x 220 cm, weight 4,800 kg. Ex works our yard in Mombasa. Not urgent, cheapest option please, LCL or breakbulk is fine.\n\nPeter Otieno\nKenya Reconditioned Machinery"
+  },
+  {
+    "message_id": "q17-gulfdates-jea-khi@quotes.example",
+    "from": "Khalid Al Mansoori <khalid@gulfdatestrading.example>",
+    "subject": "Dates 1x40 Jebel Ali to Karachi",
+    "received_at": "2026-09-18T08:30:00+04:00",
+    "body": "Dear team,\n\nPlease quote 1 x 40ft standard, packed dates in 10 kg cartons, gross 24,000 kg, Jebel Ali to Karachi, CFR Karachi. Cargo must be in Karachi before Ramadan.\n\nKhalid Al Mansoori\nGulf Dates Trading"
+  },
+  {
+    "message_id": "q18-nordlys-reply-same-as-last@quotes.example",
+    "from": "Mette Sorensen <mette@nordlysdesign.example>",
+    "subject": "Re: quote",
+    "received_at": "2026-09-18T09:10:00+02:00",
+    "body": "Hi,\n\nSame as last time but 2 pallets more, so 6 pallets total. Same destination. Can you send the updated price today?\n\nMette"
+  },
+  {
+    "message_id": "q19-selangor-pkg-rtm@quotes.example",
+    "from": "Aisyah Rahman <aisyah@selangoragro.example>",
+    "subject": "5 x 40HC Port Klang to Rotterdam, palm kernel expeller",
+    "received_at": "2026-09-18T10:45:00+08:00",
+    "body": "Dear Sir,\n\nKindly quote 5 x 40HC Port Klang (Westport) to Rotterdam. Cargo: palm kernel expeller in bulk bags, each container loaded to 26,000 kg. Terms CFR Rotterdam. Shipment window first half of November.\n\nAisyah Rahman\nSelangor Agro Sdn"
+  },
+  {
+    "message_id": "q20-ningbo-nbo-fxt@quotes.example",
+    "from": "Chen Hao <chenhao@ningbogadgets.example>",
+    "subject": "LCL Ningbo to Felixstowe, 12 cartons",
+    "received_at": "2026-09-18T11:30:00+08:00",
+    "body": "Hello,\n\n12 cartons of phone accessories (cases, cables), carton size 55 x 45 x 40 cm, total 260 kg, Ningbo to Felixstowe LCL. Ex works Ningbo. Please have it at Felixstowe by 30 October 2026.\n\nChen Hao\nNingbo Gadgets"
+  }
+]
