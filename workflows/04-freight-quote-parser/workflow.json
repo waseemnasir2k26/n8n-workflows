@@ -15,7 +15,12 @@
       "parameters": {
         "url": "https://raw.githubusercontent.com/waseemnasir2k26/n8n-workflows/main/workflows/04-freight-quote-parser/samples/quotes-20.json",
         "options": {
-          "timeout": 30000
+          "timeout": 30000,
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
         }
       },
       "name": "Fetch sample emails",
