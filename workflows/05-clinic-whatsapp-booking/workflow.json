@@ -183,7 +183,7 @@
           "maxRetries": 3
         }
       },
-      "name": "Groq gpt-oss-20b",
+      "name": "OpenRouter gpt-oss-20b",
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
       "typeVersion": 1,
       "position": [
@@ -687,7 +687,7 @@
         ]
       ]
     },
-    "Groq gpt-oss-20b": {
+    "OpenRouter gpt-oss-20b": {
       "ai_languageModel": [
         [
           {

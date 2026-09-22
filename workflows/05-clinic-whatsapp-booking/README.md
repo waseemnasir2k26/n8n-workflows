@@ -7,9 +7,12 @@ A small clinic gets appointment requests over WhatsApp mixed in with symptom que
 questions and the occasional real emergency. This workflow reads inbound WhatsApp-shaped messages,
 runs a **deterministic ES/EN safety guard in code, before any model call**, and routes anything
 about symptoms, medication, diagnosis, price, or an emergency to a human-handoff row instead of the
-AI Agent. Everything left — scheduling and general FAQ — goes to a Tools Agent (Groq
-`openai/gpt-oss-20b`, chosen over the shared `gpt-oss-120b` critic-lane model for its own
-dedicated per-minute token window) with Postgres-backed chat memory per patient and two Postgres tools:
+AI Agent. Everything left — scheduling and general FAQ — goes to a Tools Agent pointed at
+**any OpenAI-compatible chat model with tool calling** (tested with `openai/gpt-oss-20b` via
+OpenRouter; Groq's free tier's 8000 TPM per-model ceiling is too small for a 12-patient batch —
+three earlier passes on this episode measured 13-15 successful Groq calls before hitting that
+ceiling mid-run, well short of the ~22+ calls a full run needs) with Postgres-backed chat memory
+per patient and two Postgres tools:
 `check_availability` and `book_slot` (the `UPDATE ... WHERE status='free' ... RETURNING` shape makes
 double-booking a specific slot impossible by construction, not by a race-condition check).
 
@@ -114,12 +117,12 @@ ep05_bookings for tomorrow and remind the patient. Documented, not built.
 
 ## Credentials — two required, all shipped as `REPLACE_ME`
 
-| #   | Node(s)                                                                                                                                                                                                          | Credential type                         | How to create it                                                                                                                                                                        |
-| --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1   | `Dedupe on message.id`, `Handoff: insert handoff + outbox`, `Postgres Chat Memory`, `check_availability`, `book_slot`, `Insert outbox (agent reply)`, `Insert bookings (conditional)`, `Insert ep05_run_summary` | **Postgres**                            | Any Postgres. Run `schema.sql` first.                                                                                                                                                   |
-| 2   | `Groq gpt-oss-20b`                                                                                                                                                                                               | **OpenAI (generic, base-URL override)** | Type `openAiApi` with `url` set to `https://api.groq.com/openai/v1` and an API key from console.groq.com — any OpenAI-compatible chat endpoint works the same way (swap the URL + key). |
-| —   | `WhatsApp Trigger`, `WhatsApp Send message` (both disabled)                                                                                                                                                      | **WhatsApp Cloud API**                  | Optional. Meta developer app + test number, then enable the two nodes.                                                                                                                  |
-| —   | `Google Calendar create event` (disabled)                                                                                                                                                                        | **Google Calendar OAuth2**              | Optional. Enable + pick a calendar to write real bookings there too.                                                                                                                    |
+| #   | Node(s)                                                                                                                                                                                                          | Credential type                         | How to create it                                                                                                                                                                                                                                                                                                                                                                                                 |
+| --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | `Dedupe on message.id`, `Handoff: insert handoff + outbox`, `Postgres Chat Memory`, `check_availability`, `book_slot`, `Insert outbox (agent reply)`, `Insert bookings (conditional)`, `Insert ep05_run_summary` | **Postgres**                            | Any Postgres. Run `schema.sql` first.                                                                                                                                                                                                                                                                                                                                                                            |
+| 2   | `OpenRouter gpt-oss-20b`                                                                                                                                                                                         | **OpenAI (generic, base-URL override)** | Type `openAiApi` with `url` set to `https://openrouter.ai/api/v1` and an API key from openrouter.ai — any OpenAI-compatible chat model with tool calling works the same way (swap the URL + key). Tested with Gemini Flash (`https://generativelanguage.googleapis.com/v1beta/openai`) and OpenRouter's `openai/gpt-oss-20b`; Groq's free tier's 8000 TPM per-model ceiling is too small for a 12-patient batch. |
+| —   | `WhatsApp Trigger`, `WhatsApp Send message` (both disabled)                                                                                                                                                      | **WhatsApp Cloud API**                  | Optional. Meta developer app + test number, then enable the two nodes.                                                                                                                                                                                                                                                                                                                                           |
+| —   | `Google Calendar create event` (disabled)                                                                                                                                                                        | **Google Calendar OAuth2**              | Optional. Enable + pick a calendar to write real bookings there too.                                                                                                                                                                                                                                                                                                                                             |
 
 Create them in **n8n → Credentials → New**, then re-select on the matching nodes after import.
 
@@ -139,12 +142,12 @@ Create them in **n8n → Credentials → New**, then re-select on the matching n
 
 ## Caps
 
-| Cap               | Where                       | Value                                 |
-| ----------------- | --------------------------- | ------------------------------------- |
-| Messages per run  | `Normalize message` (`MAX`) | 30, the rest are dropped              |
-| Model             | `Groq gpt-oss-20b`          | `openai/gpt-oss-20b` (swap the node; not the shared `gpt-oss-120b` critic-lane model) |
-| Agent iterations  | `AI Agent` options          | 5 max                                 |
-| Execution timeout | workflow settings           | 900 s                                 |
+| Cap               | Where                       | Value                                                                                     |
+| ----------------- | --------------------------- | ----------------------------------------------------------------------------------------- |
+| Messages per run  | `Normalize message` (`MAX`) | 30, the rest are dropped                                                                  |
+| Model             | `OpenRouter gpt-oss-20b`    | `openai/gpt-oss-20b` (swap the node/URL/key for any OpenAI-compatible tool-calling model) |
+| Agent iterations  | `AI Agent` options          | 5 max                                                                                     |
+| Execution timeout | workflow settings           | 900 s                                                                                     |
 
 ## GOTCHAS
 
