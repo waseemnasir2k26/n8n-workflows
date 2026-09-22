@@ -89,11 +89,16 @@ handoff?                       IF: TRUE -> human handoff. FALSE -> the AI Agent.
    \--> AI Agent (FALSE branch)
          Tools Agent + Groq gpt-oss-20b (lmChatOpenAi, OpenAI-compatible base URL) + Postgres
          Chat Memory (session key = wa_id, contextWindowLength 6) + two Postgres tools:
-           check_availability  SELECT up to 2 free ep05_slots PER DAY for the next 7 days (a window
-                               function, not a flat LIMIT), no arguments -- a flat `LIMIT 8` with no
-                               per-day floor let one busy weekday's slots crowd out every later day,
-                               making later days mathematically unreachable regardless of what the
-                               patient asked for; fixed in Pass 5.
+           check_availability  SELECT up to 1 morning + 1 earliest-afternoon ep05_slots slot PER DAY
+                               for the next 7 days (a window function partitioned on day AND
+                               morning/afternoon half, not a flat LIMIT), no arguments -- a flat
+                               `LIMIT 8` with no per-day floor let one busy weekday's slots crowd out
+                               every later day; a naive "N per day" (no AM/PM split) still only ever
+                               returned mornings on a 09:00-17:00 grid, hiding every afternoon
+                               request. Both fixed in Pass 5 -- the current query still only returns
+                               the EARLIEST slot per half-day, so an arbitrary requested clock time
+                               (e.g. "16:00" when the earliest afternoon slot is 13:00) can still be
+                               unavailable; that is a known, disclosed limit, not a bug.
            book_slot            UPDATE ep05_slots SET status='booked' ... WHERE status='free' RETURNING
                                 (0 rows back = already taken -- no double-book possible by construction)
          System prompt: FIRST line hard-locks the reply language from the deterministic `lang_hint`
@@ -200,6 +205,21 @@ $booked = true` inserts zero rows when the turn did not end in a booking, keepin
   by start time and taking the first 8 lets one nearby busy day exhaust the limit before a later
   day's slots ever appear, so a patient can explicitly confirm a day the model can never see. Use a
   `row_number() OVER (PARTITION BY day ...)` window and cap per-day, not globally.
+- **"N per day" still isn't "a morning and an afternoon option."** Capping at 2 slots/day on a
+  09:00-17:00 grid returns the 2 EARLIEST slots, which are both mornings -- an afternoon-specific
+  request is still invisible. Partition on `(day, CASE WHEN hour < 13 THEN 0 ELSE 1 END)` instead of
+  just `(day)` to guarantee a morning and an afternoon option each, when both exist. Even this only
+  returns the EARLIEST slot per half-day -- a patient asking for an exact time (e.g. 16:00 when the
+  earliest afternoon slot is 13:00) can still get "not available"; that is an honest limit of a
+  small, human-readable slot list, not a bug to chase forever.
+- **`$('NodeName').item` inside a Postgres node used as an AI Agent TOOL does not bind to the
+  currently-iterating item** the way it does in a normal main-flow node -- it resolves to the tool's
+  own first invocation context, so every call across a batch can silently read the SAME item's
+  field. `book_slot`'s own `wa_id` write into `ep05_slots` is a known instance of this and is left
+  as-is; the correct value is instead written from a real main-flow node (`Insert bookings
+(conditional)`, verified item-bound) via a data-modifying CTE that repairs both tables in one
+  statement. Never trust `$('NodeName').item` for identity-critical writes inside a tool node --
+  verify with a real execution, not just by reading the expression.
 - **A soft "reply in the patient's language" system-prompt line is not reliable.** Pass the
   deterministic language classification in as data (`lang_hint`) and hard-lock it as the literal
   first line of the system prompt, not a suggestion buried in the middle of a longer instruction.
