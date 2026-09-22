@@ -85,7 +85,7 @@ handoff?                       IF: TRUE -> human handoff. FALSE -> the AI Agent.
    \--> AI Agent (FALSE branch)
          Tools Agent + Groq gpt-oss-120b (lmChatOpenAi, OpenAI-compatible base URL) + Postgres
          Chat Memory (session key = wa_id) + two Postgres tools:
-           check_availability  SELECT up to 3 free ep05_slots in the next 7 days, optional day filter
+           check_availability  SELECT the next 12 free ep05_slots ordered by start time, no arguments
            book_slot            UPDATE ep05_slots SET status='booked' ... WHERE status='free' RETURNING
                                 (0 rows back = already taken -- no double-book possible by construction)
          System prompt: scheduling + FAQ only, reply in the patient's language, never symptoms /
@@ -177,8 +177,11 @@ $booked = true` inserts zero rows when the turn did not end in a booking, keepin
   `active: false` immediately after creation and is never activated outside the one sanctioned run.
 - **Disabled nodes pass data through.** That is what makes the three swap points safe to ship: the
   chain still runs end to end without WhatsApp or Google Calendar wired up.
-- **`$fromAI()` fills tool parameters from the model's own reasoning**, not from a hardcoded
-  mapping — `check_availability`'s day filter and `book_slot`'s slot id are both model-chosen.
+- **`$fromAI()` fills tool parameters from the model's own reasoning.** `check_availability`
+  takes no parameters at all (an earlier `day` filter typed via `$fromAI(..., 'string')`
+  rejected the model's own `null` client-side before the query ever ran — a real n8n
+  Zod-schema/`$fromAI` type mismatch, not a model error; removed rather than patched
+  nullable). `book_slot`'s `slot_id` is still model-chosen via `$fromAI(..., 'number')`.
 - **No Data Tables swap here.** All 7 tables are plain Postgres so the schema is portable to any
   Postgres-compatible host.
 
