@@ -35,7 +35,7 @@ raw text), but nothing else about a patient is recorded. Do not wire a real clin
 without your own legal review — WhatsApp Business + n8n is not a covered, BAA-backed channel for
 protected health information in any jurisdiction that requires one.
 
-Built with 12 fictional patients and 22 synthetic WhatsApp messages
+Built with 12 fictional patients and 26 synthetic WhatsApp messages
 (`samples/patients-es.json`): 8 Spanish-speaking, 4 English-speaking, masked phone numbers only,
 one deliberate duplicate message id (Meta webhooks redeliver — a real integration must dedupe, this
 demo proves it does). **The demo feeds these samples through a webhook or the manual trigger; it
@@ -89,11 +89,19 @@ handoff?                       IF: TRUE -> human handoff. FALSE -> the AI Agent.
    \--> AI Agent (FALSE branch)
          Tools Agent + Groq gpt-oss-20b (lmChatOpenAi, OpenAI-compatible base URL) + Postgres
          Chat Memory (session key = wa_id, contextWindowLength 6) + two Postgres tools:
-           check_availability  SELECT the next 8 free ep05_slots ordered by start time, no arguments
+           check_availability  SELECT up to 2 free ep05_slots PER DAY for the next 7 days (a window
+                               function, not a flat LIMIT), no arguments -- a flat `LIMIT 8` with no
+                               per-day floor let one busy weekday's slots crowd out every later day,
+                               making later days mathematically unreachable regardless of what the
+                               patient asked for; fixed in Pass 5.
            book_slot            UPDATE ep05_slots SET status='booked' ... WHERE status='free' RETURNING
                                 (0 rows back = already taken -- no double-book possible by construction)
-         System prompt: scheduling + FAQ only, reply in the patient's language, never symptoms /
-         diagnosis / medication / price, offer max 3 slots, confirm date+time, <=60 words.
+         System prompt: FIRST line hard-locks the reply language from the deterministic `lang_hint`
+         field (`Reply ONLY in {{ Spanish | English }}`) -- a soft "reply in the patient's language"
+         instruction was not reliable enough on its own (Pass 4 measured 2/11 replies in the wrong
+         language); also instructs the model to never surface internal slot ids to the patient.
+         Scheduling + FAQ only, never symptoms / diagnosis / medication / price, offer max 3 slots,
+         confirm date+time by day/time only (never an id), <=60 words.
    |
 Parse agent output             Code (per item): reads the agent's reply text and, from
                                returnIntermediateSteps, whether book_slot actually returned a row.
@@ -131,7 +139,7 @@ Create them in **n8n → Credentials → New**, then re-select on the matching n
 1. `schema.sql` against your Postgres (creates 7 tables + seeds `ep05_slots` with a 7-day
    Mon–Sat 09:00–17:00 grid, 30-minute slots, starting tomorrow).
 2. Import `workflow.json`, set the two credentials.
-3. Press **When clicking Execute** (fetches the 22 samples from GitHub) — never activate the
+3. Press **When clicking Execute** (fetches the 26 samples from GitHub) — never activate the
    workflow for this; the webhook lane is for a real WhatsApp Business integration.
 4. Read the numbers straight off the `Run summary` execution panel, or:
    ```sql
@@ -157,8 +165,8 @@ Each of these cost a failed run or a wrong number during the build.
   confirm/cancel UI needs raw HTTP Request calls to the Cloud API — the disabled `WhatsApp Send
 message` node here is a plain text send, deliberately, as the honest swap-point baseline.
 - **Meta webhooks are at-least-once delivery, unordered.** `Dedupe on message.id` is the point,
-  not decoration — the sample set ships one deliberate duplicate id to prove it: 22 messages in,
-  21 rows in `ep05_messages`, `duplicate_webhooks_ignored=1` in the summary.
+  not decoration — the sample set ships one deliberate duplicate id to prove it: 26 messages in,
+  25 rows in `ep05_messages`, `duplicate_webhooks_ignored=1` in the summary.
 - **Raw GitHub serves JSON as `text/plain`.** `Load sample conversations` sets
   `options.response.response.responseFormat = "json"` or every downstream node sees a string, not
   an array.
@@ -188,6 +196,17 @@ $booked = true` inserts zero rows when the turn did not end in a booking, keepin
   nullable). `book_slot`'s `slot_id` is still model-chosen via `$fromAI(..., 'number')`.
 - **No Data Tables swap here.** All 7 tables are plain Postgres so the schema is portable to any
   Postgres-compatible host.
+- **A flat `LIMIT N` on an availability query is not the same as "N per day."** Sorting free slots
+  by start time and taking the first 8 lets one nearby busy day exhaust the limit before a later
+  day's slots ever appear, so a patient can explicitly confirm a day the model can never see. Use a
+  `row_number() OVER (PARTITION BY day ...)` window and cap per-day, not globally.
+- **A soft "reply in the patient's language" system-prompt line is not reliable.** Pass the
+  deterministic language classification in as data (`lang_hint`) and hard-lock it as the literal
+  first line of the system prompt, not a suggestion buried in the middle of a longer instruction.
+- **Never let the model see an internal row id it might repeat back.** `check_availability`'s
+  numeric `id` has to reach `book_slot` (`$fromAI('slot_id', ...)`), but the system prompt must
+  explicitly forbid quoting that id (or any id) back to the patient, or a reply will leak it as
+  "(id 1)" next to the offered slot.
 
 ## Files
 
@@ -195,7 +214,7 @@ $booked = true` inserts zero rows when the turn did not end in a booking, keepin
 workflow.json               the importable workflow, 25 nodes, credentials stripped to REPLACE_ME
 README.md                   this file
 schema.sql                  7 tables (messages, sessions, slots, bookings, outbox, handoffs, run_summary)
-samples/patients-es.json    22 synthetic WhatsApp messages, 12 fictional patients, masked phones
+samples/patients-es.json    26 synthetic WhatsApp messages, 12 fictional patients, masked phones
 ```
 
 MIT — see the repository root.

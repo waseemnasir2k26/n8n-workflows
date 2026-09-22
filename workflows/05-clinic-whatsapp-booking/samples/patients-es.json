@@ -26,6 +26,16 @@
     "phone_display": "+34 6•• ••• •02"
   },
   {
+    "wa_id": "34600000002",
+    "id": "wamid.EP05SIM.P02.0003",
+    "timestamp": "1790408750",
+    "text": {
+      "body": "Perfecto, resérvame la primera opción del miércoles, gracias."
+    },
+    "profile": { "name": "Javier Torres" },
+    "phone_display": "+34 6•• ••• •02"
+  },
+  {
     "wa_id": "34600000003",
     "id": "wamid.EP05SIM.P03.0001",
     "timestamp": "1790405400",
@@ -46,7 +56,17 @@
     "id": "wamid.EP05SIM.P04.0002",
     "timestamp": "1790409000",
     "text": {
-      "body": "Gracias. Aparte de eso, quiero pedir cita para limpieza la próxima semana."
+      "body": "Gracias. Aparte de eso, ¿tienen hueco el miércoles para una limpieza?"
+    },
+    "profile": { "name": "Antonio Ruiz" },
+    "phone_display": "+34 6•• ••• •04"
+  },
+  {
+    "wa_id": "34600000004",
+    "id": "wamid.EP05SIM.P04.0003",
+    "timestamp": "1790409050",
+    "text": {
+      "body": "Perfecto, confirmo la primera opción del miércoles, gracias."
     },
     "profile": { "name": "Antonio Ruiz" },
     "phone_display": "+34 6•• ••• •04"
@@ -72,7 +92,17 @@
     "id": "wamid.EP05SIM.P06.0002",
     "timestamp": "1790409300",
     "text": {
-      "body": "Entendido, esperaré la llamada. También quisiera saber los horarios del sábado."
+      "body": "Entendido, esperaré la llamada. ¿Tienen hueco el jueves para una revisión?"
+    },
+    "profile": { "name": "Pablo Molina" },
+    "phone_display": "+34 6•• ••• •06"
+  },
+  {
+    "wa_id": "34600000006",
+    "id": "wamid.EP05SIM.P06.0003",
+    "timestamp": "1790409350",
+    "text": {
+      "body": "Perfecto, confirmo la primera opción del jueves, muchas gracias."
     },
     "profile": { "name": "Pablo Molina" },
     "phone_display": "+34 6•• ••• •06"
@@ -141,6 +171,16 @@
     "timestamp": "1790410200",
     "text": {
       "body": "Thanks. Separately, do you have anything open next Monday morning?"
+    },
+    "profile": { "name": "James Wilson" },
+    "phone_display": "+44 77•• •••23"
+  },
+  {
+    "wa_id": "447700900123",
+    "id": "wamid.EP05SIM.P10.0003",
+    "timestamp": "1790410250",
+    "text": {
+      "body": "Great, please book the first option, thank you."
     },
     "profile": { "name": "James Wilson" },
     "phone_display": "+44 77•• •••23"
