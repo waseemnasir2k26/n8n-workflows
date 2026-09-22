@@ -1,0 +1,706 @@
+{
+  "name": "05 Clinic WhatsApp Booking Agent (Postgres memory, code-side handoff)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "ep05-wa-in",
+        "responseMode": "lastNode",
+        "responseData": "firstEntryJson",
+        "options": {}
+      },
+      "name": "ep05-wa-in (webhook)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -20,
+        460
+      ],
+      "webhookId": "ep05-wa-in-5c1b"
+    },
+    {
+      "parameters": {},
+      "name": "When clicking Execute",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -20,
+        140
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://raw.githubusercontent.com/waseemnasir2k26/n8n-workflows/main/workflows/05-clinic-whatsapp-booking/samples/patients-es.json",
+        "options": {
+          "timeout": 30000,
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "name": "Load sample conversations",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        220,
+        140
+      ],
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        }
+      },
+      "name": "WhatsApp Trigger (disabled swap point)",
+      "type": "n8n-nodes-base.whatsAppTrigger",
+      "typeVersion": 1,
+      "position": [
+        220,
+        620
+      ],
+      "disabled": true,
+      "credentials": {
+        "whatsAppTriggerApi": {
+          "id": "REPLACE_ME",
+          "name": "WhatsApp Cloud (REPLACE_ME)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Flatten a Meta-shaped WhatsApp feed into one item per message:\n//   { message_id, wa_id, name, lang_hint, text, received_at }\n// Accepts three shapes: the full Meta webhook envelope (entry[].changes[].value.messages[]\n// + contacts[].profile.name), the flat samples array (wa_id, id, timestamp, text.body,\n// profile.name), or a single bare message object. Caps at MAX per run.\nconst MAX = 30;\nconst ES_WORDS = [\n  \"cita\",\n  \"quiero\",\n  \"gracias\",\n  \"hola\",\n  \"dias\",\n  \"manana\",\n  \"tarde\",\n  \"jueves\",\n  \"miercoles\",\n  \"cuando\",\n];\n// Spanish accented / inverted-punctuation code points, matched by code so no\n// non-ASCII bytes ever sit in this source file.\nconst ES_CODES = [0xe1, 0xe9, 0xed, 0xf3, 0xfa, 0xf1, 0xbf, 0xa1];\n\nfunction hasAccentedSpanish(text) {\n  for (let i = 0; i < text.length; i++) {\n    if (ES_CODES.indexOf(text.charCodeAt(i)) >= 0) return true;\n  }\n  return false;\n}\n\nfunction guessLang(text) {\n  const t = String(text || \"\");\n  if (hasAccentedSpanish(t)) return \"es\";\n  const lower = t.toLowerCase();\n  for (const w of ES_WORDS) if (lower.indexOf(w) >= 0) return \"es\";\n  return \"en\";\n}\n\nfunction toIso(ts) {\n  const n = parseInt(ts, 10);\n  if (isFinite(n) && n > 0) return new Date(n * 1000).toISOString();\n  return new Date().toISOString();\n}\n\nlet raw = [];\nfor (const it of $input.all()) {\n  let b = it.json;\n  if (b && b.body && typeof b.body === \"object\" && (b.headers || b.query))\n    b = b.body; // webhook wrapper\n\n  if (b && Array.isArray(b.entry)) {\n    for (const e of b.entry) {\n      for (const ch of e.changes || []) {\n        const v = ch.value || {};\n        const nameByWa = {};\n        for (const c of v.contacts || []) {\n          if (c && c.wa_id) nameByWa[c.wa_id] = (c.profile || {}).name || null;\n        }\n        for (const m of v.messages || []) {\n          raw.push({\n            wa_id: m.from || m.wa_id,\n            id: m.id,\n            timestamp: m.timestamp,\n            text: (m.text || {}).body || \"\",\n            name: nameByWa[m.from] || null,\n          });\n        }\n      }\n    }\n  } else if (Array.isArray(b)) {\n    for (const m of b) {\n      raw.push({\n        wa_id: m.wa_id,\n        id: m.id,\n        timestamp: m.timestamp,\n        text: (m.text || {}).body || m.body || \"\",\n        name: (m.profile || {}).name || m.name || null,\n      });\n    }\n  } else if (b && b.wa_id) {\n    raw.push({\n      wa_id: b.wa_id,\n      id: b.id,\n      timestamp: b.timestamp,\n      text: (b.text || {}).body || b.body || \"\",\n      name: (b.profile || {}).name || b.name || null,\n    });\n  }\n}\n\nconst out = [];\nfor (const m of raw) {\n  if (!m || !m.wa_id || !m.text) continue;\n  out.push({\n    json: {\n      message_id: String(m.id || \"\").trim() || null,\n      wa_id: String(m.wa_id).trim(),\n      name: m.name || null,\n      lang_hint: guessLang(m.text),\n      text: String(m.text).trim(),\n      received_at: toIso(m.timestamp),\n    },\n  });\n}\nif (!out.length)\n  throw new Error(\n    \"No messages in the feed. Expected a Meta-shaped payload or the samples array.\",\n  );\nreturn out.slice(0, MAX);\n"
+      },
+      "name": "Normalize message",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO ep05_messages (message_id, wa_id, name, lang_hint, body, received_at) VALUES ($1,$2,$3,$4,$5,$6) ON CONFLICT (message_id) DO NOTHING RETURNING message_id, wa_id, name, lang_hint, body, received_at;",
+        "options": {
+          "queryReplacement": "={{ [ $json.message_id, $json.wa_id, $json.name, $json.lang_hint, $json.text, $json.received_at ] }}"
+        }
+      },
+      "name": "Dedupe on message.id",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [
+        720,
+        300
+      ],
+      "alwaysOutputData": false,
+      "credentials": {
+        "postgres": {
+          "id": "REPLACE_ME",
+          "name": "Postgres (REPLACE_ME)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Deterministic ES/EN safety guard. Runs BEFORE the model. Code, not a prompt.\n// Categories checked in order: emergency, symptoms, medication, diagnosis, price.\n// First match wins and sets handoff=true + reason. No match -> handoff=false.\n// Accented Spanish words are built from char codes so this file stays pure ASCII.\nfunction ch(code) {\n  return String.fromCharCode(code);\n}\nconst O = ch(0xf3);\nconst A = ch(0xe1);\nconst ACC_INFECCION = \"infecci\" + O + \"n\";\nconst ACC_DIAGNOSTICO = \"diagn\" + O + \"stico\";\nconst ACC_CUANTO = \"cu\" + A + \"nto cuesta\";\n\nconst text = String($json.body || \"\").toLowerCase();\n\nfunction has(s) {\n  return text.indexOf(s) >= 0;\n}\n\nlet handoff = false;\nlet reason = null;\n\nif (has(\"emergencia\") || /emergency/i.test(text)) {\n  handoff = true;\n  reason = \"emergency\";\n} else if (\n  /dolor|duele|fiebre|sangr|respirar|manchas|breathe|breathing|rash|bleeding|fever|\\bpain\\b/i.test(\n    text,\n  )\n) {\n  handoff = true;\n  reason = \"symptoms\";\n} else if (\n  has(\"medicamento\") ||\n  has(\"dosis\") ||\n  has(\"ibuprofeno\") ||\n  /medication|dosage|\\bdose\\b|ibuprofen/i.test(text)\n) {\n  handoff = true;\n  reason = \"medication\";\n} else if (\n  has(ACC_INFECCION) ||\n  has(ACC_DIAGNOSTICO) ||\n  has(\"grave\") ||\n  /diagnos|infection|is it serious|\\bserious\\b/i.test(text)\n) {\n  handoff = true;\n  reason = \"diagnosis\";\n} else if (\n  has(ACC_CUANTO) ||\n  has(\"precio\") ||\n  has(\"seguro\") ||\n  /\\bprice\\b|\\bcost\\b|how much|insurance/i.test(text)\n) {\n  handoff = true;\n  reason = \"price\";\n}\n\nreturn {\n  json: Object.assign({}, $json, {\n    handoff: handoff,\n    reason: reason,\n  }),\n};\n"
+      },
+      "name": "Safety guard",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        960,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ $json.handoff }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "name": "handoff?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1200,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH h AS (INSERT INTO ep05_handoffs (wa_id, message_id, reason) VALUES ($1, $2, $3) RETURNING wa_id, message_id) INSERT INTO ep05_outbox (wa_id, message_id, body, kind) SELECT h.wa_id, h.message_id, $4, 'handoff_notice' FROM h RETURNING id, wa_id, message_id, written_at;",
+        "options": {
+          "queryReplacement": "={{ [ $json.wa_id, $json.message_id, $json.reason, \"Gracias, un miembro del equipo te respondera en breve. / Thanks, a team member will reply shortly.\" ] }}"
+        }
+      },
+      "name": "Handoff: insert handoff + outbox",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [
+        1440,
+        180
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "REPLACE_ME",
+          "name": "Postgres (REPLACE_ME)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "openai/gpt-oss-120b",
+          "mode": "list",
+          "cachedResultName": "openai/gpt-oss-120b"
+        },
+        "options": {}
+      },
+      "name": "Groq gpt-oss-120b",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1,
+      "position": [
+        1420,
+        640
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "REPLACE_ME",
+          "name": "OpenAI-compatible (REPLACE_ME)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('Safety guard').item.json.wa_id }}"
+      },
+      "name": "Postgres Chat Memory",
+      "type": "@n8n/n8n-nodes-langchain.memoryPostgresChat",
+      "typeVersion": 1.3,
+      "position": [
+        1560,
+        640
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "REPLACE_ME",
+          "name": "Postgres (REPLACE_ME)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, slot_start, slot_end FROM ep05_slots WHERE status='free' AND slot_start > now() AND slot_start < now() + interval '7 days' AND ($1 IS NULL OR slot_start::date = $1::date) ORDER BY slot_start ASC LIMIT 3;",
+        "options": {
+          "queryReplacement": "={{ [ $fromAI('day', 'Optional day filter as YYYY-MM-DD, or null for any day in the next 7 days', 'string') ] }}"
+        },
+        "toolDescription": "Look up up to 3 free appointment slots in the next 7 days, optionally filtered to one day (YYYY-MM-DD). Returns id, slot_start, slot_end."
+      },
+      "name": "check_availability",
+      "type": "n8n-nodes-base.postgresTool",
+      "typeVersion": 2.7,
+      "position": [
+        1700,
+        640
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "REPLACE_ME",
+          "name": "Postgres (REPLACE_ME)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE ep05_slots SET status='booked', wa_id=$1, booked_at=now() WHERE id=$2 AND status='free' RETURNING id, slot_start, slot_end;",
+        "options": {
+          "queryReplacement": "={{ [ $fromAI('wa_id', 'The patient WhatsApp id (wa_id) booking this slot', 'string'), $fromAI('slot_id', 'The numeric id of the slot to book, from check_availability', 'number') ] }}"
+        },
+        "toolDescription": "Book a specific free slot by its id for a patient's wa_id. Returns 0 rows if the slot was already taken."
+      },
+      "name": "book_slot",
+      "type": "n8n-nodes-base.postgresTool",
+      "typeVersion": 2.7,
+      "position": [
+        1840,
+        640
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "REPLACE_ME",
+          "name": "Postgres (REPLACE_ME)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.body }}",
+        "hasOutputParser": false,
+        "options": {
+          "systemMessage": "You are a WhatsApp receptionist for a small clinic. Scope: scheduling and general FAQ ONLY. Never discuss symptoms, diagnosis, medication, dosage, or price -- any message needing that has already been filtered out before it reaches you. Reply in the same language the patient wrote in (Spanish or English). Use check_availability to find up to 3 free slots in the next 7 days, optionally filtered to a day the patient names. Use book_slot to confirm one specific slot once the patient picks it, then state the confirmed date and time. Never invent availability -- only offer slots check_availability actually returned. Keep every reply to 60 words or fewer.",
+          "returnIntermediateSteps": true,
+          "maxIterations": 5
+        }
+      },
+      "name": "AI Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.9,
+      "position": [
+        1440,
+        420
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract the reply text and, when the agent actually booked a slot (via the\n// book_slot tool), the booked slot id + start time from the intermediate steps.\nconst item = $json;\nconst guard = $(\"Safety guard\").item.json;\nconst wa_id = guard.wa_id;\nconst message_id = guard.message_id;\nconst reply = item.output || item.text || \"\";\n\nlet booked_slot_id = null;\nlet booked_start = null;\nconst steps = Array.isArray(item.intermediateSteps)\n  ? item.intermediateSteps\n  : [];\nfor (const s of steps) {\n  const toolName = s && s.action && s.action.tool;\n  if (toolName !== \"book_slot\") continue;\n  let obs = s.observation;\n  let rows = [];\n  try {\n    const parsed = typeof obs === \"string\" ? JSON.parse(obs) : obs;\n    rows = Array.isArray(parsed) ? parsed : (parsed && parsed.rows) || [];\n  } catch (e) {\n    rows = [];\n  }\n  if (rows.length) {\n    booked_slot_id = rows[0].id || null;\n    booked_start = rows[0].slot_start || null;\n  }\n}\n\nreturn {\n  json: {\n    wa_id,\n    message_id,\n    reply,\n    booked: !!booked_slot_id,\n    slot_id: booked_slot_id,\n    slot_start: booked_start,\n  },\n};\n"
+      },
+      "name": "Parse agent output",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1700,
+        420
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO ep05_outbox (wa_id, message_id, body, kind) VALUES ($1,$2,$3,'agent_reply') RETURNING id, wa_id, message_id, written_at;",
+        "options": {
+          "queryReplacement": "={{ [ $json.wa_id, $json.message_id, $json.reply ] }}"
+        }
+      },
+      "name": "Insert outbox (agent reply)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [
+        1940,
+        420
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "REPLACE_ME",
+          "name": "Postgres (REPLACE_ME)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO ep05_bookings (wa_id, slot_id, message_id) SELECT $1, $2::integer, $3 WHERE $4::boolean = true RETURNING id, slot_id;",
+        "options": {
+          "queryReplacement": "={{ [ $json.wa_id, $json.slot_id, $json.message_id, $json.booked ] }}"
+        }
+      },
+      "name": "Insert bookings (conditional)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [
+        2180,
+        420
+      ],
+      "alwaysOutputData": false,
+      "credentials": {
+        "postgres": {
+          "id": "REPLACE_ME",
+          "name": "Postgres (REPLACE_ME)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.wa_id }}",
+        "textBody": "={{ $json.reply || \"Gracias, un miembro del equipo te respondera en breve. / Thanks, a team member will reply shortly.\" }}"
+      },
+      "name": "WhatsApp Send message (disabled swap point)",
+      "type": "n8n-nodes-base.whatsApp",
+      "typeVersion": 1,
+      "position": [
+        1940,
+        620
+      ],
+      "disabled": true,
+      "credentials": {
+        "whatsAppApi": {
+          "id": "REPLACE_ME",
+          "name": "WhatsApp Cloud (REPLACE_ME)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "calendar": {
+          "__rl": true,
+          "value": "REPLACE_ME",
+          "mode": "list"
+        },
+        "start": "={{ $json.slot_start }}",
+        "end": "={{ $json.slot_start }}",
+        "additionalFields": {
+          "summary": "Clinic appointment"
+        }
+      },
+      "name": "Google Calendar create event (disabled swap point)",
+      "type": "n8n-nodes-base.googleCalendar",
+      "typeVersion": 1.3,
+      "position": [
+        2180,
+        620
+      ],
+      "disabled": true,
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "REPLACE_ME",
+          "name": "Google Calendar (REPLACE_ME)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 24
+            }
+          ]
+        }
+      },
+      "name": "Reminder 24h (disabled schedule lane)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        2180,
+        780
+      ],
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// One summary item, read straight off the execution panel.\nfunction all(name) {\n  try {\n    return $(name)\n      .all()\n      .map(function (i) {\n        return i.json;\n      });\n  } catch (e) {\n    return [];\n  }\n}\n\nconst normalized = all(\"Normalize message\");\nconst deduped = all(\"Dedupe on message.id\");\nconst guarded = all(\"Safety guard\");\nconst handoffRows = all(\"Handoff: insert handoff + outbox\");\nconst agentOutbox = all(\"Insert outbox (agent reply)\");\nconst bookingRows = all(\"Insert bookings (conditional)\");\n\nconst patients = new Set(normalized.map((m) => m.wa_id));\nconst languages = Array.from(\n  new Set(normalized.map((m) => m.lang_hint)),\n).sort();\n\nconst handoffs_fired = guarded.filter((g) => g.handoff === true).length;\nconst duplicate_webhooks_ignored = Math.max(\n  0,\n  normalized.length - deduped.length,\n);\n\nconst slotIds = bookingRows\n  .map((r) => r.slot_id || r.id)\n  .filter((v) => v !== null && v !== undefined);\nconst seen = new Set();\nlet double_bookings = 0;\nfor (const id of slotIds) {\n  if (seen.has(id)) double_bookings++;\n  else seen.add(id);\n}\n\n// median seconds to first reply: pair each patient's FIRST message received_at\n// with the FIRST outbox row (handoff or agent reply) written for that wa_id.\nconst firstMsgByWa = {};\nfor (const m of guarded) {\n  if (\n    !firstMsgByWa[m.wa_id] ||\n    new Date(m.received_at) < new Date(firstMsgByWa[m.wa_id])\n  ) {\n    firstMsgByWa[m.wa_id] = m.received_at;\n  }\n}\nconst outboxRows = handoffRows.concat(agentOutbox);\nconst firstReplyByWa = {};\nfor (const r of outboxRows) {\n  const wa = r.wa_id;\n  const t = r.written_at;\n  if (!wa || !t) continue;\n  if (!firstReplyByWa[wa] || new Date(t) < new Date(firstReplyByWa[wa])) {\n    firstReplyByWa[wa] = t;\n  }\n}\nconst deltas = [];\nfor (const wa in firstMsgByWa) {\n  if (firstReplyByWa[wa]) {\n    const secs =\n      (new Date(firstReplyByWa[wa]) - new Date(firstMsgByWa[wa])) / 1000;\n    if (isFinite(secs) && secs >= 0) deltas.push(secs);\n  }\n}\ndeltas.sort((a, b) => a - b);\nlet median_seconds_to_first_reply = null;\nif (deltas.length) {\n  const mid = Math.floor(deltas.length / 2);\n  median_seconds_to_first_reply =\n    deltas.length % 2 ? deltas[mid] : (deltas[mid - 1] + deltas[mid]) / 2;\n  median_seconds_to_first_reply =\n    Math.round(median_seconds_to_first_reply * 10) / 10;\n}\n\nreturn [\n  {\n    json: {\n      patients_simulated: patients.size,\n      bookings_confirmed: bookingRows.length,\n      median_seconds_to_first_reply,\n      handoffs_fired,\n      double_bookings,\n      duplicate_webhooks_ignored,\n      languages: languages.join(\",\"),\n    },\n  },\n];\n"
+      },
+      "name": "Run summary",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2420,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO ep05_run_summary (run_id, patients_simulated, bookings_confirmed, median_seconds_to_first_reply, handoffs_fired, double_bookings, duplicate_webhooks_ignored, languages) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id;",
+        "options": {
+          "queryReplacement": "={{ [ $now.toFormat('yyyyLLdd-HHmm'), $json.patients_simulated, $json.bookings_confirmed, $json.median_seconds_to_first_reply, $json.handoffs_fired, $json.double_bookings, $json.duplicate_webhooks_ignored, $json.languages ] }}"
+        }
+      },
+      "name": "Insert ep05_run_summary",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [
+        2660,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "REPLACE_ME",
+          "name": "Postgres (REPLACE_ME)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "width": 900,
+        "height": 200,
+        "color": 3,
+        "content": "## SCHEDULING AND FAQ ONLY\nSCHEDULING AND FAQ ONLY * NO SYMPTOMS, NO DIAGNOSIS * NO HEALTH DATA STORED * n8n OFFERS NO BAA\n\nThe Safety guard node runs BEFORE the model on every message: deterministic ES/EN regex for symptoms, medication, diagnosis and price sends the conversation to a human handoff row instead of the AI Agent. Fictional patients, masked phone numbers, no PHI columns anywhere in schema.sql."
+      },
+      "name": "Sticky Scope",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -20,
+        -140
+      ]
+    },
+    {
+      "parameters": {
+        "width": 460,
+        "height": 200,
+        "color": 5,
+        "content": "## SIMULATED PATIENT MESSAGES VIA WEBHOOK\n\n**When clicking Execute** fetches 22 synthetic WhatsApp messages from this repo (samples/patients-es.json). **ep05-wa-in (webhook)** takes a real Meta Cloud API payload the same shape -- point a WhatsApp Business webhook at it. This demo never pairs a real WhatsApp number."
+      },
+      "name": "Sticky Simulated",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -20,
+        900
+      ]
+    },
+    {
+      "parameters": {
+        "width": 900,
+        "height": 200,
+        "color": 4,
+        "content": "## WHATSAPP NODES DISABLED -- SWAP POINTS\n\nWhatsApp Trigger, WhatsApp Send message, and Google Calendar create event are wired but disabled -- enable them with real credentials to go live. The Reminder 24h schedule lane is a disabled future lane (read ep05_bookings for tomorrow, send a reminder), not run in this demo."
+      },
+      "name": "Sticky Swap Points",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        900,
+        900
+      ]
+    }
+  ],
+  "connections": {
+    "ep05-wa-in (webhook)": {
+      "main": [
+        [
+          {
+            "node": "Normalize message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When clicking Execute": {
+      "main": [
+        [
+          {
+            "node": "Load sample conversations",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load sample conversations": {
+      "main": [
+        [
+          {
+            "node": "Normalize message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "WhatsApp Trigger (disabled swap point)": {
+      "main": [
+        [
+          {
+            "node": "Normalize message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize message": {
+      "main": [
+        [
+          {
+            "node": "Dedupe on message.id",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Dedupe on message.id": {
+      "main": [
+        [
+          {
+            "node": "Safety guard",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Safety guard": {
+      "main": [
+        [
+          {
+            "node": "handoff?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "handoff?": {
+      "main": [
+        [
+          {
+            "node": "Handoff: insert handoff + outbox",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Handoff: insert handoff + outbox": {
+      "main": [
+        [
+          {
+            "node": "Run summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq gpt-oss-120b": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres Chat Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "check_availability": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "book_slot": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Parse agent output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse agent output": {
+      "main": [
+        [
+          {
+            "node": "Insert outbox (agent reply)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert outbox (agent reply)": {
+      "main": [
+        [
+          {
+            "node": "Insert bookings (conditional)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "WhatsApp Send message (disabled swap point)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert bookings (conditional)": {
+      "main": [
+        [
+          {
+            "node": "Run summary",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Google Calendar create event (disabled swap point)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "executionTimeout": 900
+  }
+}

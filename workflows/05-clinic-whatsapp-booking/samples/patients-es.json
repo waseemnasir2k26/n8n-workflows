@@ -1,0 +1,192 @@
+[
+  {
+    "wa_id": "34600000001",
+    "id": "wamid.EP05SIM.P01.0001",
+    "timestamp": "1790404800",
+    "text": { "body": "me duele el pecho desde anoche" },
+    "profile": { "name": "Lucia Fernandez" },
+    "phone_display": "+34 6•• ••• •01"
+  },
+  {
+    "wa_id": "34600000002",
+    "id": "wamid.EP05SIM.P02.0001",
+    "timestamp": "1790405100",
+    "text": { "body": "¿cuánto cuesta la limpieza dental?" },
+    "profile": { "name": "Javier Torres" },
+    "phone_display": "+34 6•• ••• •02"
+  },
+  {
+    "wa_id": "34600000002",
+    "id": "wamid.EP05SIM.P02.0002",
+    "timestamp": "1790408700",
+    "text": {
+      "body": "Vale, entendido. ¿Tienen hueco el viernes para una revisión general?"
+    },
+    "profile": { "name": "Javier Torres" },
+    "phone_display": "+34 6•• ••• •02"
+  },
+  {
+    "wa_id": "34600000003",
+    "id": "wamid.EP05SIM.P03.0001",
+    "timestamp": "1790405400",
+    "text": { "body": "¿puedo tomar ibuprofeno antes de la cita?" },
+    "profile": { "name": "Marta Gomez" },
+    "phone_display": "+34 6•• ••• •03"
+  },
+  {
+    "wa_id": "34600000004",
+    "id": "wamid.EP05SIM.P04.0001",
+    "timestamp": "1790405700",
+    "text": { "body": "tengo fiebre y manchas, ¿es grave?" },
+    "profile": { "name": "Antonio Ruiz" },
+    "phone_display": "+34 6•• ••• •04"
+  },
+  {
+    "wa_id": "34600000004",
+    "id": "wamid.EP05SIM.P04.0002",
+    "timestamp": "1790409000",
+    "text": {
+      "body": "Gracias. Aparte de eso, quiero pedir cita para limpieza la próxima semana."
+    },
+    "profile": { "name": "Antonio Ruiz" },
+    "phone_display": "+34 6•• ••• •04"
+  },
+  {
+    "wa_id": "34600000005",
+    "id": "wamid.EP05SIM.P05.0001",
+    "timestamp": "1790406000",
+    "text": { "body": "¿el doctor cree que es una infección?" },
+    "profile": { "name": "Carmen Diaz" },
+    "phone_display": "+34 6•• ••• •05"
+  },
+  {
+    "wa_id": "34600000006",
+    "id": "wamid.EP05SIM.P06.0001",
+    "timestamp": "1790406300",
+    "text": { "body": "es una emergencia, sangro mucho" },
+    "profile": { "name": "Pablo Molina" },
+    "phone_display": "+34 6•• ••• •06"
+  },
+  {
+    "wa_id": "34600000006",
+    "id": "wamid.EP05SIM.P06.0002",
+    "timestamp": "1790409300",
+    "text": {
+      "body": "Entendido, esperaré la llamada. También quisiera saber los horarios del sábado."
+    },
+    "profile": { "name": "Pablo Molina" },
+    "phone_display": "+34 6•• ••• •06"
+  },
+  {
+    "wa_id": "34600000007",
+    "id": "wamid.EP05SIM.P07.0001",
+    "timestamp": "1790406600",
+    "text": { "body": "quiero cita para limpieza el jueves por la tarde" },
+    "profile": { "name": "Isabel Navarro" },
+    "phone_display": "+34 6•• ••• •07"
+  },
+  {
+    "wa_id": "34600000007",
+    "id": "wamid.EP05SIM.P07.0002",
+    "timestamp": "1790406900",
+    "text": { "body": "Sí, el jueves a las 16:00 me viene bien, confirmo." },
+    "profile": { "name": "Isabel Navarro" },
+    "phone_display": "+34 6•• ••• •07"
+  },
+  {
+    "wa_id": "34600000008",
+    "id": "wamid.EP05SIM.P08.0001",
+    "timestamp": "1790407200",
+    "text": {
+      "body": "Hola, necesito pedir una cita, ¿qué días tienen disponibles?"
+    },
+    "profile": { "name": "Sergio Campos" },
+    "phone_display": "+34 6•• ••• •08"
+  },
+  {
+    "wa_id": "34600000008",
+    "id": "wamid.EP05SIM.P08.0002",
+    "timestamp": "1790407500",
+    "text": { "body": "¿Tienen algo el miércoles por la mañana?" },
+    "profile": { "name": "Sergio Campos" },
+    "phone_display": "+34 6•• ••• •08"
+  },
+  {
+    "wa_id": "34600000008",
+    "id": "wamid.EP05SIM.P08.0003",
+    "timestamp": "1790407800",
+    "text": { "body": "Perfecto, confirmo el miércoles a las 10:00." },
+    "profile": { "name": "Sergio Campos" },
+    "phone_display": "+34 6•• ••• •08"
+  },
+  {
+    "wa_id": "14155550101",
+    "id": "wamid.EP05SIM.P09.0001",
+    "timestamp": "1790408100",
+    "text": { "body": "what does this rash mean?" },
+    "profile": { "name": "Emily Carter" },
+    "phone_display": "+1 415•• •••01"
+  },
+  {
+    "wa_id": "447700900123",
+    "id": "wamid.EP05SIM.P10.0001",
+    "timestamp": "1790408400",
+    "text": { "body": "how much is a filling with insurance?" },
+    "profile": { "name": "James Wilson" },
+    "phone_display": "+44 77•• •••23"
+  },
+  {
+    "wa_id": "447700900123",
+    "id": "wamid.EP05SIM.P10.0002",
+    "timestamp": "1790410200",
+    "text": {
+      "body": "Thanks. Separately, do you have anything open next Monday morning?"
+    },
+    "profile": { "name": "James Wilson" },
+    "phone_display": "+44 77•• •••23"
+  },
+  {
+    "wa_id": "61491570123",
+    "id": "wamid.EP05SIM.P11.0001",
+    "timestamp": "1790409600",
+    "text": { "body": "can I double my dose before Friday?" },
+    "profile": { "name": "Olivia Bennett" },
+    "phone_display": "+61 49•• •••23"
+  },
+  {
+    "wa_id": "61491570123",
+    "id": "wamid.EP05SIM.P11.0002",
+    "timestamp": "1790410500",
+    "text": {
+      "body": "Understood. Can you also tell me your hours on Saturday?"
+    },
+    "profile": { "name": "Olivia Bennett" },
+    "phone_display": "+61 49•• •••23"
+  },
+  {
+    "wa_id": "353851234567",
+    "id": "wamid.EP05SIM.P12.0001",
+    "timestamp": "1790409900",
+    "text": { "body": "my child cannot breathe properly" },
+    "profile": { "name": "Daniel Murphy" },
+    "phone_display": "+353 85•• •••67"
+  },
+  {
+    "wa_id": "353851234567",
+    "id": "wamid.EP05SIM.P12.0002",
+    "timestamp": "1790410800",
+    "text": { "body": "can I move my Tuesday appointment to Thursday?" },
+    "profile": { "name": "Daniel Murphy" },
+    "phone_display": "+353 85•• •••67"
+  },
+  {
+    "wa_id": "34600000008",
+    "id": "wamid.EP05SIM.P08.0001",
+    "timestamp": "1790411100",
+    "text": {
+      "body": "Hola, necesito pedir una cita, ¿qué días tienen disponibles?"
+    },
+    "profile": { "name": "Sergio Campos" },
+    "phone_display": "+34 6•• ••• •08"
+  }
+]

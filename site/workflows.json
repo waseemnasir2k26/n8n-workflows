@@ -35,6 +35,13 @@
       "status": "live",
       "video_url": null,
       "json_url": "https://github.com/waseemnasir2k26/n8n-workflows/tree/main/workflows/00-workflow-library-signup"
+    },
+    {
+      "slug": "clinic-whatsapp-booking",
+      "title": "Clinic WhatsApp booking agent (Postgres memory, code-side handoff) - simulated patient messages in, code-side safety guard, AI Agent books real slots, nothing sent",
+      "status": "live",
+      "video_url": null,
+      "json_url": "https://github.com/waseemnasir2k26/n8n-workflows/tree/main/workflows/05-clinic-whatsapp-booking"
     }
   ]
 }
