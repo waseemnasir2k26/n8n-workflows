@@ -1,47 +1,54 @@
 {
-  "updated": "2026-09-22",
-  "workflows": [
-    {
-      "slug": "freight-quote-parser",
-      "title": "Freight quote email parser (Claude -> table + draft reply) - quote emails in, 8 fields per row keyed on message id, draft reply never sent",
-      "status": "live",
-      "video_url": "https://youtu.be/vuOnqlIa_rw",
-      "json_url": "https://github.com/waseemnasir2k26/n8n-workflows/tree/main/workflows/04-freight-quote-parser"
-    },
-    {
-      "slug": "maps-lead-harvest",
-      "title": "Maps lead harvest (Apify -> Postgres) - trade + city in, deduped lead table with a run_id out",
-      "status": "live",
-      "video_url": "https://youtu.be/FwBva2bm_d8",
-      "json_url": "https://github.com/waseemnasir2k26/n8n-workflows/tree/main/workflows/03-maps-lead-harvest"
-    },
-    {
-      "slug": "speed-to-lead",
-      "title": "Speed-to-lead (simulated demo) - AI dispatcher texts back in seconds, qualifies, books a visit window",
-      "status": "live",
-      "video_url": "https://youtu.be/-lEQYzTgI5o",
-      "json_url": "https://github.com/waseemnasir2k26/n8n-workflows/tree/main/workflows/02-speed-to-lead"
-    },
-    {
-      "slug": "shorts-factory",
-      "title": "Shorts factory (SF-01) - topic in, captioned 9:16 Short out",
-      "status": "live",
-      "video_url": "https://youtu.be/5p7IYgR-c2E",
-      "json_url": "https://github.com/waseemnasir2k26/n8n-workflows/tree/main/workflows/01-shorts-factory"
-    },
-    {
-      "slug": "workflow-library-signup",
-      "title": "Workflow library signup — webhook → validate → Postgres upsert → welcome email",
-      "status": "live",
-      "video_url": null,
-      "json_url": "https://github.com/waseemnasir2k26/n8n-workflows/tree/main/workflows/00-workflow-library-signup"
-    },
-    {
-      "slug": "clinic-whatsapp-booking",
-      "title": "Clinic WhatsApp booking agent (Postgres memory, code-side handoff) - simulated patient messages in, code-side safety guard, AI Agent books real slots, nothing sent",
-      "status": "live",
-      "video_url": null,
-      "json_url": "https://github.com/waseemnasir2k26/n8n-workflows/tree/main/workflows/05-clinic-whatsapp-booking"
-    }
-  ]
+    "updated": "2026-09-22",
+    "workflows": [
+        {
+            "slug": "freight-quote-parser",
+            "title": "Freight quote email parser (Claude -> table + draft reply) - quote emails in, 8 fields per row keyed on message id, draft reply never sent",
+            "status": "live",
+            "video_url": "https://youtu.be/vuOnqlIa_rw",
+            "json_url": "https://github.com/waseemnasir2k26/n8n-workflows/tree/main/workflows/04-freight-quote-parser"
+        },
+        {
+            "slug": "maps-lead-harvest",
+            "title": "Maps lead harvest (Apify -> Postgres) - trade + city in, deduped lead table with a run_id out",
+            "status": "live",
+            "video_url": "https://youtu.be/FwBva2bm_d8",
+            "json_url": "https://github.com/waseemnasir2k26/n8n-workflows/tree/main/workflows/03-maps-lead-harvest"
+        },
+        {
+            "slug": "speed-to-lead",
+            "title": "Speed-to-lead (simulated demo) - AI dispatcher texts back in seconds, qualifies, books a visit window",
+            "status": "live",
+            "video_url": "https://youtu.be/-lEQYzTgI5o",
+            "json_url": "https://github.com/waseemnasir2k26/n8n-workflows/tree/main/workflows/02-speed-to-lead"
+        },
+        {
+            "slug": "shorts-factory",
+            "title": "Shorts factory (SF-01) - topic in, captioned 9:16 Short out",
+            "status": "live",
+            "video_url": "https://youtu.be/5p7IYgR-c2E",
+            "json_url": "https://github.com/waseemnasir2k26/n8n-workflows/tree/main/workflows/01-shorts-factory"
+        },
+        {
+            "slug": "workflow-library-signup",
+            "title": "Workflow library signup — webhook → validate → Postgres upsert → welcome email",
+            "status": "live",
+            "video_url": null,
+            "json_url": "https://github.com/waseemnasir2k26/n8n-workflows/tree/main/workflows/00-workflow-library-signup"
+        },
+        {
+            "slug": "clinic-whatsapp-booking",
+            "title": "Clinic WhatsApp booking agent (Postgres memory, code-side handoff) - simulated patient messages in, code-side safety guard, AI Agent books real slots, nothing sent",
+            "status": "live",
+            "video_url": null,
+            "json_url": "https://github.com/waseemnasir2k26/n8n-workflows/tree/main/workflows/05-clinic-whatsapp-booking"
+        },
+        {
+            "slug": "meta-ads-breaker",
+            "title": "Meta ads circuit breaker (pause-only write, Data Table caps) - deterministic caps trip a whitelist gate that can only ever pause",
+            "status": "live",
+            "video_url": null,
+            "json_url": "https://github.com/waseemnasir2k26/n8n-workflows/tree/main/workflows/06-meta-ads-breaker"
+        }
+    ]
 }

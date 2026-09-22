@@ -1,0 +1,737 @@
+{
+ "name": "EP06 Meta Ads Circuit Breaker (pause-only, Data Table caps)",
+ "nodes": [
+  {
+   "parameters": {
+    "rule": {
+     "interval": [
+      {
+       "field": "minutes",
+       "minutesInterval": 15
+      }
+     ]
+    }
+   },
+   "id": "ep06-every-15-minutes",
+   "name": "Every 15 minutes",
+   "type": "n8n-nodes-base.scheduleTrigger",
+   "typeVersion": 1.2,
+   "position": [
+    -680,
+    200
+   ],
+   "disabled": true
+  },
+  {
+   "parameters": {},
+   "id": "ep06-manual-test",
+   "name": "Manual Test",
+   "type": "n8n-nodes-base.manualTrigger",
+   "typeVersion": 1,
+   "position": [
+    -680,
+    380
+   ]
+  },
+  {
+   "parameters": {
+    "resource": "row",
+    "operation": "get",
+    "dataTableId": {
+     "__rl": true,
+     "mode": "id",
+     "value": "REPLACE_ME",
+     "cachedResultName": "ep06_caps"
+    },
+    "filters": {},
+    "returnAll": true
+   },
+   "id": "ep06-load-caps",
+   "name": "Load caps",
+   "type": "n8n-nodes-base.dataTable",
+   "typeVersion": 1.1,
+   "position": [
+    -460,
+    300
+   ]
+  },
+  {
+   "parameters": {
+    "mode": "runOnceForAllItems",
+    "language": "javaScript",
+    "jsCode": "// Folds the armed-guard (kill_enabled && !breaker_tripped) into this node: an\n// unarmed breaker returns zero items, and every node downstream (Fetch insights /\n// Load sample insights / everything after) naturally does nothing with zero input\n// items -- no separate If node needed to short-circuit an unarmed run.\n// actions_today enforcement (kill_enabled && !breaker_tripped && actions_today <\n// max_actions_per_day) needs a persisted per-day counter this single manual-run\n// demo does not query -- disclosed limitation, see README GOTCHAS.\nconst out = [];\n\nfor (const item of $input.all()) {\n  const cfg = item.json;\n\n  if (cfg.kill_enabled !== true) continue;\n  if (cfg.breaker_tripped === true) continue;\n\n  let timeRange = {};\n  try {\n    timeRange = JSON.parse(cfg.time_range_override || '{}');\n  } catch (e) {\n    timeRange = {};\n  }\n\n  const apiVer = String($env.META_API_VER || 'v22.0').trim();\n  const adsetId = String(cfg.adset_id || '').trim();\n\n  out.push({ json: {\n    adset_id: adsetId,\n    api_ver: apiVer,\n    time_range: timeRange,\n    fetch_url: 'https://graph.facebook.com/' + apiVer + '/' + adsetId + '/insights',\n    daily_spend_cap_usd: Number(cfg.daily_spend_cap_usd || 0),\n    cpl_cap_usd: Number(cfg.cpl_cap_usd || 0),\n    min_spend_before_cpl_usd: Number(cfg.min_spend_before_cpl_usd || 0),\n    zero_lead_spend_usd: Number(cfg.zero_lead_spend_usd || 0),\n    cooldown_minutes: Number(cfg.cooldown_minutes || 0),\n    max_actions_per_run: Number(cfg.max_actions_per_run || 1),\n    dry_run: cfg.dry_run === true\n  } });\n}\n\nreturn out;\n"
+   },
+   "id": "ep06-build-insights-request",
+   "name": "Build insights request",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    -240,
+    300
+   ]
+  },
+  {
+   "parameters": {
+    "method": "GET",
+    "url": "={{ $json.fetch_url }}",
+    "sendHeaders": true,
+    "headerParameters": {
+     "parameters": [
+      {
+       "name": "Authorization",
+       "value": "=Bearer {{ $env.META_SYSUSER_TOKEN }}"
+      }
+     ]
+    },
+    "sendQuery": true,
+    "queryParameters": {
+     "parameters": [
+      {
+       "name": "fields",
+       "value": "spend,impressions,clicks,ctr,actions,date_start,date_stop"
+      },
+      {
+       "name": "time_range",
+       "value": "={{ JSON.stringify($json.time_range) }}"
+      }
+     ]
+    },
+    "options": {
+     "timeout": 20000,
+     "response": {
+      "response": {
+       "responseFormat": "json"
+      }
+     }
+    }
+   },
+   "id": "ep06-fetch-insights",
+   "name": "Fetch insights",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    0,
+    200
+   ]
+  },
+  {
+   "parameters": {
+    "method": "GET",
+    "url": "https://raw.githubusercontent.com/waseemnasir2k26/n8n-workflows/main/workflows/06-meta-ads-breaker/samples/insights-sample.json",
+    "options": {
+     "timeout": 30000,
+     "response": {
+      "response": {
+       "responseFormat": "json"
+      }
+     }
+    }
+   },
+   "id": "ep06-load-sample-insights",
+   "name": "Load sample insights",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    0,
+    420
+   ],
+   "disabled": true
+  },
+  {
+   "parameters": {
+    "mode": "runOnceForAllItems",
+    "language": "javaScript",
+    "jsCode": "// Masks BEFORE anything is stored, logged or rendered. Handles two shapes on the\n// SAME input: the live Graph API insights response ({data:[...]}) and the disabled\n// sample lane's file ({rows:[...]}, already masked at rest in samples/insights-sample.json).\n// leads = MAX over action types matching /lead/i, NEVER the sum -- a row can carry\n// both 'lead' and 'onsite_conversion.lead_grouped' for the SAME lead event.\n// Folds the \"Any rows?\" throw-on-zero requirement into this node: zero normalized\n// rows out is a hard stop, not a silent green (no alwaysOutputData anywhere in this\n// workflow).\nfunction maskTail(raw) {\n  const s = String(raw == null ? '' : raw);\n  const tail = s.length >= 4 ? s.slice(-4) : s;\n  return '\\u2022\\u2022\\u2022\\u2022' + tail;\n}\n\nfunction leadsFromActions(actions) {\n  if (!Array.isArray(actions)) return 0;\n  let max = 0;\n  for (const a of actions) {\n    const t = String((a && a.action_type) || '');\n    if (/lead/i.test(t)) {\n      const v = Number((a && a.value) || 0);\n      if (v > max) max = v;\n    }\n  }\n  return max;\n}\n\nconst ACCOUNT_REF_MASKED = 'act_\\u2022\\u2022\\u2022\\u20223502'; // our own ad account, masked -- never the raw id\n\nlet rawAdsetId = '';\ntry {\n  rawAdsetId = String($('Build insights request').first().json.adset_id || '');\n} catch (e) {\n  rawAdsetId = '';\n}\n\nconst out = [];\n\nfor (const item of $input.all()) {\n  const j = item.json;\n\n  if (Array.isArray(j.data)) {\n    for (const row of j.data) {\n      const spend = Number(row.spend || 0);\n      const leads = leadsFromActions(row.actions);\n      out.push({ json: {\n        account_ref: ACCOUNT_REF_MASKED,\n        adset_ref: maskTail(rawAdsetId),\n        adset_name: 'HVAC AU 28-60 broad',\n        spend: spend,\n        impressions: Number(row.impressions || 0),\n        clicks: Number(row.clicks || 0),\n        ctr: Number(row.ctr || 0),\n        date_start: row.date_start || null,\n        date_stop: row.date_stop || null,\n        leads: leads,\n        cpl: leads > 0 ? spend / leads : null,\n        source: 'live',\n        adset_id_for_gate: rawAdsetId\n      } });\n    }\n  } else if (Array.isArray(j.rows)) {\n    for (const row of j.rows) {\n      const spend = Number(row.spend || 0);\n      const leads = leadsFromActions(row.actions);\n      out.push({ json: {\n        account_ref: row.account_ref || null,\n        adset_ref: row.adset_ref || null,\n        adset_name: row.adset_name || null,\n        spend: spend,\n        impressions: Number(row.impressions || 0),\n        clicks: Number(row.clicks || 0),\n        ctr: Number(row.ctr || 0),\n        date_start: row.date_start || null,\n        date_stop: row.date_stop || null,\n        leads: leads,\n        cpl: leads > 0 ? spend / leads : null,\n        source: 'sample',\n        lag_hours_since_last_impression: row.lag_hours_since_last_impression,\n        adset_id_for_gate: null\n      } });\n    }\n  }\n}\n\nif (out.length === 0) {\n  throw new Error('Any rows?: zero insight rows after normalize -- refusing to evaluate the breaker on no data.');\n}\n\nreturn out;\n"
+   },
+   "id": "ep06-mask-+-normalize",
+   "name": "Mask + normalize",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    240,
+    300
+   ]
+  },
+  {
+   "parameters": {
+    "operation": "executeQuery",
+    "query": "INSERT INTO ep06_insights (account_ref, adset_ref, adset_name, spend, impressions, clicks, ctr, leads, cpl, date_start, date_stop, source) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING id;",
+    "options": {
+     "queryReplacement": "={{ [ $json.account_ref, $json.adset_ref, $json.adset_name, $json.spend, $json.impressions, $json.clicks, $json.ctr, $json.leads, $json.cpl, $json.date_start, $json.date_stop, $json.source ] }}"
+    }
+   },
+   "id": "ep06-store-snapshot",
+   "name": "Store snapshot",
+   "type": "n8n-nodes-base.postgres",
+   "typeVersion": 2.7,
+   "position": [
+    460,
+    300
+   ],
+   "credentials": {
+    "postgres": {
+     "id": "REPLACE_ME",
+     "name": "Postgres (REPLACE_ME)"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "mode": "runOnceForEachItem",
+    "language": "javaScript",
+    "jsCode": "// THE BRAIN. Reads every threshold from the caps row (Load caps / ep06_caps) --\n// nothing is a magic number here. Reads the normalized insight fields by node\n// reference (not $json) because this node sits downstream of Store snapshot's\n// INSERT ... RETURNING, whose own $json is the Postgres result row, not the\n// insight fields.\n// Rule order: min-data guard -> lag guard -> R3 (CPL) -> R1 (spend cap) -> R2\n// (zero-lead). R3 is checked ahead of R1 so a leads>=1, over-cap-spend row reports\n// the CPL breach it actually is rather than a generic spend-cap breach.\nconst norm = $('Mask + normalize').item.json;\nlet cfg = {};\ntry {\n  cfg = $('Load caps').first().json || {};\n} catch (e) {\n  cfg = {};\n}\n\nconst spend = Number(norm.spend || 0);\nconst leads = Number(norm.leads || 0);\nconst cpl = norm.cpl;\nconst minSpend = Number(cfg.min_spend_before_cpl_usd || 0);\nconst dailyCap = Number(cfg.daily_spend_cap_usd || 0);\nconst zeroLeadCap = Number(cfg.zero_lead_spend_usd || 0);\nconst cplCap = Number(cfg.cpl_cap_usd || 0);\nconst dryRun = cfg.dry_run === true;\nconst dateStop = String(norm.date_stop || '');\nconst adsetRefForKey = norm.adset_id_for_gate || norm.adset_ref || 'unknown';\n\nlet lagHours = null;\nif (Object.prototype.hasOwnProperty.call(norm, 'lag_hours_since_last_impression') &&\n    norm.lag_hours_since_last_impression !== undefined && norm.lag_hours_since_last_impression !== null) {\n  lagHours = Number(norm.lag_hours_since_last_impression);\n}\nconst insideLagWindow = lagHours !== null && lagHours < 28;\n\nfunction money(v) {\n  return '$' + Number(v || 0).toFixed(2);\n}\n\nfunction base(kind, rule, reason) {\n  return { json: {\n    kind: kind,\n    rule: rule,\n    reason: reason,\n    adset_ref: norm.adset_ref,\n    adset_id_for_gate: norm.adset_id_for_gate,\n    object_id: norm.adset_id_for_gate,\n    object_name: norm.adset_name,\n    observed: {\n      spend: spend, leads: leads, cpl: cpl,\n      cpl_cap_usd: cplCap, daily_spend_cap_usd: dailyCap,\n      zero_lead_spend_usd: zeroLeadCap, min_spend_before_cpl_usd: minSpend\n    },\n    idempotency_key: 'ep06:' + adsetRefForKey + ':' + rule + ':' + dateStop,\n    dry_run: dryRun\n  } };\n}\n\nif (spend < minSpend) {\n  return base('none', 'min-data', 'min-data guard: spend ' + money(spend) + ' < floor ' + money(minSpend) + ' -- unknown, not a breach');\n}\n\nif (leads === 0 && insideLagWindow) {\n  return base('none', 'lag', 'lag guard: 0 leads but only ' + lagHours + 'h since last impression (settle window 28h) -- unknown, not a breach');\n}\n\nif (leads >= 1 && cpl !== null && cpl > cplCap) {\n  return base('pause', 'R3', 'R3 CPL breach: cpl = spend/leads = ' + money(spend) + '/' + leads + ' = ' + money(cpl) + ' > cap ' + money(cplCap));\n}\n\nif (spend >= dailyCap) {\n  return base('pause', 'R1', 'R1 spend-cap breach: spend ' + money(spend) + ' >= cap ' + money(dailyCap));\n}\n\nif (leads === 0 && spend >= zeroLeadCap) {\n  return base('pause', 'R2', 'R2 zero-lead breach: spend ' + money(spend) + ' >= zero-lead cap ' + money(zeroLeadCap) + ' with 0 leads');\n}\n\nreturn base('none', 'clean', 'clean pass: all rules pass');\n"
+   },
+   "id": "ep06-evaluate-breaker",
+   "name": "Evaluate breaker",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    680,
+    300
+   ]
+  },
+  {
+   "parameters": {
+    "mode": "rules",
+    "rules": {
+     "values": [
+      {
+       "conditions": {
+        "options": {
+         "caseSensitive": true,
+         "leftValue": "",
+         "typeValidation": "strict"
+        },
+        "conditions": [
+         {
+          "leftValue": "={{ $json.kind }}",
+          "rightValue": "pause",
+          "operator": {
+           "type": "string",
+           "operation": "equals"
+          }
+         }
+        ],
+        "combinator": "and"
+       },
+       "outputKey": "pause"
+      },
+      {
+       "conditions": {
+        "options": {
+         "caseSensitive": true,
+         "leftValue": "",
+         "typeValidation": "strict"
+        },
+        "conditions": [
+         {
+          "leftValue": "={{ $json.kind }}",
+          "rightValue": "trip",
+          "operator": {
+           "type": "string",
+           "operation": "equals"
+          }
+         }
+        ],
+        "combinator": "and"
+       },
+       "outputKey": "trip"
+      },
+      {
+       "conditions": {
+        "options": {
+         "caseSensitive": true,
+         "leftValue": "",
+         "typeValidation": "strict"
+        },
+        "conditions": [
+         {
+          "leftValue": "={{ $json.kind }}",
+          "rightValue": "none",
+          "operator": {
+           "type": "string",
+           "operation": "equals"
+          }
+         }
+        ],
+        "combinator": "and"
+       },
+       "outputKey": "none"
+      }
+     ]
+    },
+    "options": {}
+   },
+   "id": "ep06-route-verdict",
+   "name": "Route verdict",
+   "type": "n8n-nodes-base.switch",
+   "typeVersion": 3.2,
+   "position": [
+    900,
+    300
+   ]
+  },
+  {
+   "parameters": {
+    "resource": "row",
+    "operation": "update",
+    "dataTableId": {
+     "__rl": true,
+     "mode": "id",
+     "value": "REPLACE_ME",
+     "cachedResultName": "ep06_caps"
+    },
+    "matchType": "allConditions",
+    "filters": {
+     "conditions": [
+      {
+       "keyName": "adset_id",
+       "condition": "eq",
+       "keyValue": "={{ $json.adset_id_for_gate }}"
+      }
+     ]
+    },
+    "columns": {
+     "mappingMode": "defineBelow",
+     "value": {
+      "breaker_tripped": true
+     },
+     "matchingColumns": [],
+     "schema": []
+    }
+   },
+   "id": "ep06-trip-breaker",
+   "name": "Trip breaker",
+   "type": "n8n-nodes-base.dataTable",
+   "typeVersion": 1.1,
+   "position": [
+    1140,
+    460
+   ]
+  },
+  {
+   "parameters": {
+    "mode": "runOnceForAllItems",
+    "language": "javaScript",
+    "jsCode": "// ===================== WRITE WHITELIST GATE =====================\n// Same chokepoint pattern as the estate's live breaker, MA-02 (1AmiT4eqfzIFH4TW):\n// this node builds the write body ITSELF from constants -- callers never supply\n// one -- so the only body that can physically reach Meta is {status:'PAUSED'}.\n// There is no code path here that emits ACTIVE, budgets, bid, targeting or\n// creative. It also refuses any object id that is not the allowlisted ad set\n// from the ep06_caps Data Table row, so a corrupted or synthetic item (e.g. from\n// the disabled sample lane, whose rows carry no raw id at all) can never reach a\n// real Meta write. Throws, never skips -- same hard-fail shape as MA-02.\nconst ALLOWED_FIELD = 'status';\nconst ALLOWED_VALUE = 'PAUSED';\n\nlet cfg = {};\ntry {\n  cfg = $('Load caps').first().json || {};\n} catch (e) {\n  cfg = {};\n}\nconst allowlist = new Set([String(cfg.adset_id || '')].filter(Boolean));\n\nconst out = [];\nfor (const item of $input.all()) {\n  const j = item.json;\n\n  if (j.kind !== 'pause') {\n    throw new Error('WRITE WHITELIST: refusing item of kind \"' + j.kind + '\". Only kind=pause may reach the Meta write path.');\n  }\n\n  const id = String(j.object_id || '').trim();\n  if (!id) {\n    throw new Error('WRITE WHITELIST: refusing a pause with an empty object_id.');\n  }\n  if (!allowlist.has(id)) {\n    throw new Error('WRITE WHITELIST: object_id is not the allowlisted ad set from ep06_caps. Refusing to write to an unrecognised Meta object.');\n  }\n\n  const body = {};\n  body[ALLOWED_FIELD] = ALLOWED_VALUE;\n  const keys = Object.keys(body);\n  if (keys.length !== 1 || keys[0] !== ALLOWED_FIELD || body[ALLOWED_FIELD] !== ALLOWED_VALUE) {\n    throw new Error('WRITE WHITELIST: constructed body failed its own assertion: ' + JSON.stringify(body));\n  }\n\n  const apiVer = String($env.META_API_VER || 'v22.0').trim();\n  out.push({ json: Object.assign({}, j, {\n    request_body: body,\n    write_url: 'https://graph.facebook.com/' + apiVer + '/' + id,\n    verify_url: 'https://graph.facebook.com/' + apiVer + '/' + id + '?fields=id,configured_status,effective_status'\n  }) });\n}\nreturn out;\n"
+   },
+   "id": "ep06-write-whitelist-gate",
+   "name": "WRITE WHITELIST GATE",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    1140,
+    220
+   ]
+  },
+  {
+   "parameters": {
+    "conditions": {
+     "options": {
+      "caseSensitive": true,
+      "leftValue": "",
+      "typeValidation": "strict"
+     },
+     "conditions": [
+      {
+       "leftValue": "={{ $json.dry_run }}",
+       "rightValue": true,
+       "operator": {
+        "type": "boolean",
+        "operation": "equals"
+       }
+      }
+     ],
+     "combinator": "and"
+    },
+    "options": {}
+   },
+   "id": "ep06-dry-run",
+   "name": "Dry run?",
+   "type": "n8n-nodes-base.if",
+   "typeVersion": 2.2,
+   "position": [
+    1380,
+    220
+   ]
+  },
+  {
+   "parameters": {
+    "method": "POST",
+    "url": "={{ $json.write_url }}",
+    "sendHeaders": true,
+    "headerParameters": {
+     "parameters": [
+      {
+       "name": "Authorization",
+       "value": "=Bearer {{ $env.META_SYSUSER_TOKEN }}"
+      }
+     ]
+    },
+    "sendBody": true,
+    "contentType": "form-urlencoded",
+    "bodyParameters": {
+     "parameters": [
+      {
+       "name": "status",
+       "value": "={{ $json.request_body.status }}"
+      }
+     ]
+    },
+    "options": {
+     "timeout": 20000
+    }
+   },
+   "id": "ep06-pause-at-meta",
+   "name": "Pause at Meta",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    1620,
+    100
+   ]
+  },
+  {
+   "parameters": {
+    "method": "GET",
+    "url": "={{ $('WRITE WHITELIST GATE').item.json.verify_url }}",
+    "sendHeaders": true,
+    "headerParameters": {
+     "parameters": [
+      {
+       "name": "Authorization",
+       "value": "=Bearer {{ $env.META_SYSUSER_TOKEN }}"
+      }
+     ]
+    },
+    "options": {
+     "timeout": 20000
+    }
+   },
+   "id": "ep06-verify-effective-status",
+   "name": "Verify effective status",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    1860,
+    100
+   ]
+  },
+  {
+   "parameters": {
+    "operation": "executeQuery",
+    "query": "INSERT INTO ep06_receipts (run_ts, adset_ref, rule, reason, dry_run, configured_status, effective_status, idempotency_key, observed) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id;",
+    "options": {
+     "queryReplacement": "={{ [ $now.toFormat('yyyyLLdd-HHmmss'), $('WRITE WHITELIST GATE').item.json.adset_ref, $('WRITE WHITELIST GATE').item.json.rule, $('WRITE WHITELIST GATE').item.json.reason, $('WRITE WHITELIST GATE').item.json.dry_run, $json.configured_status || null, $json.effective_status || null, $('WRITE WHITELIST GATE').item.json.idempotency_key, JSON.stringify($('WRITE WHITELIST GATE').item.json.observed || {}) ] }}"
+    }
+   },
+   "id": "ep06-write-receipt",
+   "name": "Write receipt",
+   "type": "n8n-nodes-base.postgres",
+   "typeVersion": 2.7,
+   "position": [
+    1860,
+    300
+   ],
+   "credentials": {
+    "postgres": {
+     "id": "REPLACE_ME",
+     "name": "Postgres (REPLACE_ME)"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "resource": "message",
+    "operation": "post",
+    "select": "channel",
+    "channelId": {
+     "__rl": true,
+     "mode": "id",
+     "value": "REPLACE_ME"
+    },
+    "text": "=EP06 breaker receipt: rule {{ $('WRITE WHITELIST GATE').item.json.rule }} on {{ $('WRITE WHITELIST GATE').item.json.adset_ref }} -- {{ $('WRITE WHITELIST GATE').item.json.reason }} (dry_run={{ $('WRITE WHITELIST GATE').item.json.dry_run }})",
+    "otherOptions": {}
+   },
+   "id": "ep06-post-receipt-to-slack",
+   "name": "Post receipt to Slack",
+   "type": "n8n-nodes-base.slack",
+   "typeVersion": 2.3,
+   "position": [
+    2100,
+    300
+   ],
+   "disabled": true,
+   "credentials": {
+    "slack": {
+     "id": "REPLACE_ME",
+     "name": "Slack (REPLACE_ME)"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "mode": "runOnceForAllItems",
+    "language": "javaScript",
+    "jsCode": "// One summary item, read straight off the execution panel. Runs for every\n// verdict branch (none / trip / pause) so a \"nothing to do\" run still reports.\nfunction all(name) {\n  try {\n    return $(name).all().map(function (i) { return i.json; });\n  } catch (e) {\n    return [];\n  }\n}\n\nconst normalized = all('Mask + normalize');\nconst evaluated = all('Evaluate breaker');\nconst gated = all('WRITE WHITELIST GATE');\nconst receipts = all('Write receipt');\nconst tripped = all('Trip breaker');\n\nconst kinds = {};\nfor (const e of evaluated) {\n  kinds[e.kind] = (kinds[e.kind] || 0) + 1;\n}\n\nconst dryRunActive = evaluated.length ? evaluated[0].dry_run === true : null;\n\nreturn [{ json: {\n  rows_evaluated: normalized.length,\n  none_count: kinds.none || 0,\n  trip_count: kinds.trip || 0,\n  pause_count: kinds.pause || 0,\n  actions_gated: gated.length,\n  receipts_written: receipts.length,\n  breaker_trips_written: tripped.length,\n  dry_run: dryRunActive,\n  spend_observed: normalized.length ? normalized[0].spend : null,\n  leads_observed: normalized.length ? normalized[0].leads : null,\n  clicks_observed: normalized.length ? normalized[0].clicks : null,\n  impressions_observed: normalized.length ? normalized[0].impressions : null\n} }];\n"
+   },
+   "id": "ep06-run-summary",
+   "name": "Run summary",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    2340,
+    300
+   ]
+  },
+  {
+   "parameters": {
+    "content": "## EP06 -- Meta Ads Circuit Breaker\n\nReads Meta insights for ONE ad set on a schedule (disabled here -- manual test only), evaluates 3 deterministic caps stored in the `ep06_caps` Data Table, and if a cap is breached, pauses that ad set at Meta (the ONLY write this workflow can make) with a Postgres receipt.\n\nZero LLM nodes. Zero client data -- our own HVAC ad set, ids masked before anything is stored. `Every 15 minutes` and `Load sample insights` are DISABLED swap points; this workflow is never left active.",
+    "height": 280,
+    "width": 460
+   },
+   "id": "ep06-note-what-this-does",
+   "name": "Note: what this does",
+   "type": "n8n-nodes-base.stickyNote",
+   "typeVersion": 1,
+   "position": [
+    -680,
+    -80
+   ]
+  },
+  {
+   "parameters": {
+    "content": "## The only write path\n\n`WRITE WHITELIST GATE` builds `{status:'PAUSED'}` from constants -- callers never supply a body -- and throws on anything that is not kind=pause, has an empty id, or an id outside the `ep06_caps` allowlist.\n\n`Dry run?` sends nothing to Meta while `dry_run=true` in the caps row; the receipt still records `WOULD PAUSE -- DRY RUN`. PAUSE IS THE ONLY WRITE IT CAN MAKE.",
+    "height": 260,
+    "width": 460
+   },
+   "id": "ep06-note-breaker",
+   "name": "Note: breaker",
+   "type": "n8n-nodes-base.stickyNote",
+   "typeVersion": 1,
+   "position": [
+    1140,
+    -60
+   ]
+  }
+ ],
+ "connections": {
+  "Every 15 minutes": {
+   "main": [
+    [
+     {
+      "node": "Load caps",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Manual Test": {
+   "main": [
+    [
+     {
+      "node": "Load caps",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Load caps": {
+   "main": [
+    [
+     {
+      "node": "Build insights request",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Build insights request": {
+   "main": [
+    [
+     {
+      "node": "Fetch insights",
+      "type": "main",
+      "index": 0
+     },
+     {
+      "node": "Load sample insights",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Fetch insights": {
+   "main": [
+    [
+     {
+      "node": "Mask + normalize",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Load sample insights": {
+   "main": [
+    [
+     {
+      "node": "Mask + normalize",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Mask + normalize": {
+   "main": [
+    [
+     {
+      "node": "Store snapshot",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Store snapshot": {
+   "main": [
+    [
+     {
+      "node": "Evaluate breaker",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Evaluate breaker": {
+   "main": [
+    [
+     {
+      "node": "Route verdict",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Route verdict": {
+   "main": [
+    [
+     {
+      "node": "WRITE WHITELIST GATE",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "Trip breaker",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "Run summary",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Trip breaker": {
+   "main": [
+    [
+     {
+      "node": "Run summary",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "WRITE WHITELIST GATE": {
+   "main": [
+    [
+     {
+      "node": "Dry run?",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Dry run?": {
+   "main": [
+    [
+     {
+      "node": "Write receipt",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "Pause at Meta",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Pause at Meta": {
+   "main": [
+    [
+     {
+      "node": "Verify effective status",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Verify effective status": {
+   "main": [
+    [
+     {
+      "node": "Write receipt",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Write receipt": {
+   "main": [
+    [
+     {
+      "node": "Post receipt to Slack",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Post receipt to Slack": {
+   "main": [
+    [
+     {
+      "node": "Run summary",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  }
+ },
+ "settings": {
+  "executionOrder": "v1",
+  "executionTimeout": 300
+ }
+}

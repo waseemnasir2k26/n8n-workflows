@@ -1,0 +1,124 @@
+{
+  "note": "Synthetic + one real (masked) row for EP06 Meta ads circuit breaker. account_ref and adset_ref are masked before this file is ever written -- these are the SAME shapes the Mask + normalize node produces, so the demo lane and the live lane exercise identical downstream code. No page id anywhere. leads = MAX over action types matching /lead/i, never SUM.",
+  "rows": [
+    {
+      "row_id": "real-masked-ep06",
+      "description": "The real EP06 row, masked. Our own HVAC AU ad set, window 2026-08-30 to 2026-09-22 (24 days, explicit time_range because the campaign is paused and date_preset=today returns zero rows). This is the row that trips R2 (zero-lead spend cap).",
+      "account_ref": "act_••3502",
+      "adset_ref": "••0014",
+      "adset_name": "HVAC AU 28-60 broad",
+      "spend": 70.15,
+      "impressions": 982,
+      "clicks": 44,
+      "ctr": 4.48,
+      "date_start": "2026-08-30",
+      "date_stop": "2026-09-22",
+      "actions": [
+        { "action_type": "link_click", "value": 18 },
+        { "action_type": "landing_page_view", "value": 12 }
+      ]
+    },
+    {
+      "row_id": "syn-min-data-unknown",
+      "description": "Min-data guard: spend below min_spend_before_cpl_usd (25.00) -- every value-dependent rule must return unknown, never a breach.",
+      "account_ref": "act_••demo",
+      "adset_ref": "••demo1",
+      "adset_name": "SYN AU 25-54 lookalike",
+      "spend": 12.4,
+      "impressions": 210,
+      "clicks": 9,
+      "ctr": 4.29,
+      "date_start": "2026-09-15",
+      "date_stop": "2026-09-22",
+      "actions": []
+    },
+    {
+      "row_id": "syn-r1-spend-cap-breach",
+      "description": "R1 spend-cap breach: spend >= daily_spend_cap_usd (60.00) with leads present, above min-data floor.",
+      "account_ref": "act_••demo",
+      "adset_ref": "••demo2",
+      "adset_name": "SYN AU 25-54 lookalike",
+      "spend": 61.2,
+      "impressions": 1500,
+      "clicks": 60,
+      "ctr": 4.0,
+      "date_start": "2026-09-08",
+      "date_stop": "2026-09-22",
+      "actions": [{ "action_type": "lead", "value": 2 }]
+    },
+    {
+      "row_id": "syn-r2-zero-lead-breach",
+      "description": "R2 zero-lead breach: spend >= zero_lead_spend_usd (60.00) AND leads == 0. Mirrors the real row's shape but a clean synthetic to prove the branch independently of live data.",
+      "account_ref": "act_••demo",
+      "adset_ref": "••demo3",
+      "adset_name": "SYN AU 25-54 lookalike",
+      "spend": 65.0,
+      "impressions": 1100,
+      "clicks": 40,
+      "ctr": 3.64,
+      "date_start": "2026-08-29",
+      "date_stop": "2026-09-22",
+      "actions": [{ "action_type": "link_click", "value": 40 }]
+    },
+    {
+      "row_id": "syn-r3-cpl-breach",
+      "description": "R3 CPL breach: leads >= 1 AND cpl (spend/leads) > cpl_cap_usd (25.00). spend 100 / leads 2 = cpl 50.00.",
+      "account_ref": "act_••demo",
+      "adset_ref": "••demo4",
+      "adset_name": "SYN AU 25-54 lookalike",
+      "spend": 100.0,
+      "impressions": 3000,
+      "clicks": 120,
+      "ctr": 4.0,
+      "date_start": "2026-09-01",
+      "date_stop": "2026-09-22",
+      "actions": [{ "action_type": "lead", "value": 2 }]
+    },
+    {
+      "row_id": "syn-clean-pass",
+      "description": "Clean pass: above min-data floor, under every cap, cpl under ceiling. No rule fires.",
+      "account_ref": "act_••demo",
+      "adset_ref": "••demo5",
+      "adset_name": "SYN AU 25-54 lookalike",
+      "spend": 40.0,
+      "impressions": 1800,
+      "clicks": 70,
+      "ctr": 3.89,
+      "date_start": "2026-09-10",
+      "date_stop": "2026-09-22",
+      "actions": [{ "action_type": "lead", "value": 3 }]
+    },
+    {
+      "row_id": "syn-lag-window-unknown",
+      "description": "Lag guard: 0 leads but the window is still inside the conversion-lag settle time (some Meta action types settle up to 28h) -- must resolve unknown, not a breach, even though spend clears the zero-lead cap.",
+      "account_ref": "act_••demo",
+      "adset_ref": "••demo6",
+      "adset_name": "SYN AU 25-54 lookalike",
+      "spend": 62.0,
+      "impressions": 900,
+      "clicks": 30,
+      "ctr": 3.33,
+      "date_start": "2026-09-22",
+      "date_stop": "2026-09-22",
+      "actions": [],
+      "lag_hours_since_last_impression": 3
+    },
+    {
+      "row_id": "syn-max-not-sum-proof",
+      "description": "Two lead-ish action types on one row: 'lead' 3 and 'onsite_conversion.lead_grouped' 3. Correct leads = MAX(3,3) = 3. A SUM bug would read 6 and halve the true CPL -- this row is the regression fixture for that class of bug.",
+      "account_ref": "act_••demo",
+      "adset_ref": "••demo7",
+      "adset_name": "SYN AU 25-54 lookalike",
+      "spend": 90.0,
+      "impressions": 2200,
+      "clicks": 95,
+      "ctr": 4.32,
+      "date_start": "2026-09-05",
+      "date_stop": "2026-09-22",
+      "actions": [
+        { "action_type": "lead", "value": 3 },
+        { "action_type": "onsite_conversion.lead_grouped", "value": 3 }
+      ]
+    }
+  ]
+}
