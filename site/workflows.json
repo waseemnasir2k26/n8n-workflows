@@ -1,18 +1,18 @@
 {
-  "updated": "2026-09-18",
+  "updated": "2026-09-22",
   "workflows": [
     {
       "slug": "freight-quote-parser",
       "title": "Freight quote email parser (Claude -> table + draft reply) - quote emails in, 8 fields per row keyed on message id, draft reply never sent",
       "status": "live",
-      "video_url": null,
+      "video_url": "https://youtu.be/vuOnqlIa_rw",
       "json_url": "https://github.com/waseemnasir2k26/n8n-workflows/tree/main/workflows/04-freight-quote-parser"
     },
     {
       "slug": "maps-lead-harvest",
       "title": "Maps lead harvest (Apify -> Postgres) - trade + city in, deduped lead table with a run_id out",
       "status": "live",
-      "video_url": null,
+      "video_url": "https://youtu.be/FwBva2bm_d8",
       "json_url": "https://github.com/waseemnasir2k26/n8n-workflows/tree/main/workflows/03-maps-lead-harvest"
     },
     {
