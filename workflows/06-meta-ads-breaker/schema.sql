@@ -19,12 +19,17 @@ CREATE TABLE IF NOT EXISTS ep06_insights (
   created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- One row per pause-lane decision (dry or real), written by Write receipt's CTE.
+-- This is the real actions_today counter: Store snapshot's own CTE reads
+-- `count(*) WHERE created_at::date = current_date` from this table and carries it
+-- into Evaluate breaker, which refuses a pause verdict (kind -> 'none',
+-- rule 'daily-cap') once max_actions_per_day is reached.
 CREATE TABLE IF NOT EXISTS ep06_actions (
-  id            SERIAL PRIMARY KEY,
-  insight_id    INTEGER REFERENCES ep06_insights(id),
-  action_type   TEXT,
-  action_value  NUMERIC(12,2),
-  created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+  id          SERIAL PRIMARY KEY,
+  adset_ref   TEXT,          -- masked
+  rule        TEXT,          -- R1 | R2 | R3
+  dry_run     BOOLEAN,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 CREATE TABLE IF NOT EXISTS ep06_receipts (

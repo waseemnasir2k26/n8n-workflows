@@ -1,5 +1,5 @@
 {
- "name": "EP06 Error Workflow (logs to ep06_errors)",
+ "name": "EP06 Error Workflow (logs to ep06_errors, bumps consecutive_api_errors)",
  "nodes": [
   {
    "parameters": {},
@@ -34,6 +34,66 @@
      "name": "Postgres (REPLACE_ME)"
     }
    }
+  },
+  {
+   "parameters": {
+    "resource": "row",
+    "operation": "get",
+    "dataTableId": {
+     "__rl": true,
+     "mode": "id",
+     "value": "REPLACE_ME",
+     "cachedResultName": "ep06_caps"
+    },
+    "filters": {},
+    "returnAll": true
+   },
+   "id": "ep06-error-read-caps",
+   "name": "Read caps",
+   "type": "n8n-nodes-base.dataTable",
+   "typeVersion": 1.1,
+   "position": [
+    480,
+    0
+   ]
+  },
+  {
+   "parameters": {
+    "resource": "row",
+    "operation": "update",
+    "dataTableId": {
+     "__rl": true,
+     "mode": "id",
+     "value": "REPLACE_ME",
+     "cachedResultName": "ep06_caps"
+    },
+    "matchType": "allConditions",
+    "filters": {
+     "conditions": [
+      {
+       "keyName": "adset_id",
+       "condition": "eq",
+       "keyValue": "={{ $json.adset_id }}"
+      }
+     ]
+    },
+    "columns": {
+     "mappingMode": "defineBelow",
+     "value": {
+      "consecutive_api_errors": "={{ Number($json.consecutive_api_errors || 0) + 1 }}"
+     },
+     "matchingColumns": [],
+     "schema": []
+    }
+   },
+   "id": "ep06-error-bump-counter",
+   "name": "Bump error counter",
+   "type": "n8n-nodes-base.dataTable",
+   "typeVersion": 1.1,
+   "position": [
+    720,
+    0
+   ]
   }
  ],
  "connections": {
@@ -42,6 +102,28 @@
     [
      {
       "node": "Log error",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Log error": {
+   "main": [
+    [
+     {
+      "node": "Read caps",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Read caps": {
+   "main": [
+    [
+     {
+      "node": "Bump error counter",
       "type": "main",
       "index": 0
      }
