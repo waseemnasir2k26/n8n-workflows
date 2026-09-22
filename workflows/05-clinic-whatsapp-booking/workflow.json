@@ -178,15 +178,12 @@
     },
     {
       "parameters": {
-        "model": {
-          "__rl": true,
-          "value": "openai/gpt-oss-120b",
-          "mode": "list",
-          "cachedResultName": "openai/gpt-oss-120b"
-        },
-        "options": {}
+        "model": "openai/gpt-oss-20b",
+        "options": {
+          "maxRetries": 3
+        }
       },
-      "name": "Groq gpt-oss-120b",
+      "name": "Groq gpt-oss-20b",
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
       "typeVersion": 1,
       "position": [
@@ -203,7 +200,8 @@
     {
       "parameters": {
         "sessionIdType": "customKey",
-        "sessionKey": "={{ $('Safety guard').item.json.wa_id }}"
+        "sessionKey": "={{ $('Safety guard').item.json.wa_id }}",
+        "contextWindowLength": 6
       },
       "name": "Postgres Chat Memory",
       "type": "@n8n/n8n-nodes-langchain.memoryPostgresChat",
@@ -222,9 +220,9 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT id, to_char(slot_start,'Dy DD Mon HH24:MI') AS slot FROM ep05_slots WHERE status='free' AND slot_start > now() ORDER BY slot_start ASC LIMIT 12;",
+        "query": "SELECT id, to_char(slot_start,'Dy DD Mon HH24:MI') AS slot FROM ep05_slots WHERE status='free' AND slot_start > now() ORDER BY slot_start ASC LIMIT 8;",
         "options": {},
-        "toolDescription": "Look up the next 12 free appointment slots, ordered by start time soonest first. Takes no arguments. Returns id and a human-readable slot string for each."
+        "toolDescription": "Look up the next 8 free appointment slots, ordered by start time soonest first. Takes no arguments. Returns id and a human-readable slot string for each."
       },
       "name": "check_availability",
       "type": "n8n-nodes-base.postgresTool",
@@ -269,7 +267,7 @@
         "text": "={{ $json.body }}",
         "hasOutputParser": false,
         "options": {
-          "systemMessage": "You are a WhatsApp receptionist for a small clinic. Scope: scheduling and general FAQ ONLY. Never discuss symptoms, diagnosis, medication, dosage, or price -- any message needing that has already been filtered out before it reaches you. Reply in the same language the patient wrote in (Spanish or English). Call check_availability with no arguments -- it returns the next 12 free slots ordered by start time -- then offer at most 3 slots that match the patient's stated preference (day or time of day); if none match, offer the 3 earliest returned slots instead. Use book_slot to confirm one specific slot once the patient picks it, passing the numeric id field from check_availability's result as slot_id, then state the confirmed date and time. Never invent availability -- only offer slots check_availability actually returned. Keep every reply to 60 words or fewer.",
+          "systemMessage": "You are a WhatsApp receptionist for a small clinic. Scope: scheduling and general FAQ ONLY. Never discuss symptoms, diagnosis, medication, dosage, or price -- any message needing that has already been filtered out before it reaches you. Reply in the same language the patient wrote in (Spanish or English). Call check_availability with no arguments -- it returns the next 8 free slots ordered by start time -- then offer at most 3 slots that match the patient's stated preference (day or time of day); if none match, offer the 3 earliest returned slots instead. Use book_slot to confirm one specific slot once the patient picks it, passing the numeric id field from check_availability's result as slot_id, then state the confirmed date and time. Never invent availability -- only offer slots check_availability actually returned. Keep every reply to 60 words or fewer.",
           "returnIntermediateSteps": true,
           "maxIterations": 5
         }
@@ -280,7 +278,11 @@
       "position": [
         1440,
         420
-      ]
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 20000,
+      "onError": "stopWorkflow"
     },
     {
       "parameters": {
@@ -594,17 +596,6 @@
         ]
       ]
     },
-    "Groq gpt-oss-120b": {
-      "ai_languageModel": [
-        [
-          {
-            "node": "AI Agent",
-            "type": "ai_languageModel",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "Postgres Chat Memory": {
       "ai_memory": [
         [
@@ -691,6 +682,17 @@
           {
             "node": "Google Calendar create event (disabled swap point)",
             "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq gpt-oss-20b": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
             "index": 0
           }
         ]

@@ -8,7 +8,8 @@ questions and the occasional real emergency. This workflow reads inbound WhatsAp
 runs a **deterministic ES/EN safety guard in code, before any model call**, and routes anything
 about symptoms, medication, diagnosis, price, or an emergency to a human-handoff row instead of the
 AI Agent. Everything left — scheduling and general FAQ — goes to a Tools Agent (Groq
-`openai/gpt-oss-120b`) with Postgres-backed chat memory per patient and two Postgres tools:
+`openai/gpt-oss-20b`, chosen over the shared `gpt-oss-120b` critic-lane model for its own
+dedicated per-minute token window) with Postgres-backed chat memory per patient and two Postgres tools:
 `check_availability` and `book_slot` (the `UPDATE ... WHERE status='free' ... RETURNING` shape makes
 double-booking a specific slot impossible by construction, not by a race-condition check).
 
@@ -83,9 +84,9 @@ handoff?                       IF: TRUE -> human handoff. FALSE -> the AI Agent.
    |                          then ep05_outbox in a single round trip.
    |
    \--> AI Agent (FALSE branch)
-         Tools Agent + Groq gpt-oss-120b (lmChatOpenAi, OpenAI-compatible base URL) + Postgres
-         Chat Memory (session key = wa_id) + two Postgres tools:
-           check_availability  SELECT the next 12 free ep05_slots ordered by start time, no arguments
+         Tools Agent + Groq gpt-oss-20b (lmChatOpenAi, OpenAI-compatible base URL) + Postgres
+         Chat Memory (session key = wa_id, contextWindowLength 6) + two Postgres tools:
+           check_availability  SELECT the next 8 free ep05_slots ordered by start time, no arguments
            book_slot            UPDATE ep05_slots SET status='booked' ... WHERE status='free' RETURNING
                                 (0 rows back = already taken -- no double-book possible by construction)
          System prompt: scheduling + FAQ only, reply in the patient's language, never symptoms /
@@ -116,7 +117,7 @@ ep05_bookings for tomorrow and remind the patient. Documented, not built.
 | #   | Node(s)                                                                                                                                                                                                          | Credential type                         | How to create it                                                                                                                                                                        |
 | --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 1   | `Dedupe on message.id`, `Handoff: insert handoff + outbox`, `Postgres Chat Memory`, `check_availability`, `book_slot`, `Insert outbox (agent reply)`, `Insert bookings (conditional)`, `Insert ep05_run_summary` | **Postgres**                            | Any Postgres. Run `schema.sql` first.                                                                                                                                                   |
-| 2   | `Groq gpt-oss-120b`                                                                                                                                                                                              | **OpenAI (generic, base-URL override)** | Type `openAiApi` with `url` set to `https://api.groq.com/openai/v1` and an API key from console.groq.com — any OpenAI-compatible chat endpoint works the same way (swap the URL + key). |
+| 2   | `Groq gpt-oss-20b`                                                                                                                                                                                               | **OpenAI (generic, base-URL override)** | Type `openAiApi` with `url` set to `https://api.groq.com/openai/v1` and an API key from console.groq.com — any OpenAI-compatible chat endpoint works the same way (swap the URL + key). |
 | —   | `WhatsApp Trigger`, `WhatsApp Send message` (both disabled)                                                                                                                                                      | **WhatsApp Cloud API**                  | Optional. Meta developer app + test number, then enable the two nodes.                                                                                                                  |
 | —   | `Google Calendar create event` (disabled)                                                                                                                                                                        | **Google Calendar OAuth2**              | Optional. Enable + pick a calendar to write real bookings there too.                                                                                                                    |
 
@@ -141,7 +142,7 @@ Create them in **n8n → Credentials → New**, then re-select on the matching n
 | Cap               | Where                       | Value                                 |
 | ----------------- | --------------------------- | ------------------------------------- |
 | Messages per run  | `Normalize message` (`MAX`) | 30, the rest are dropped              |
-| Model             | `Groq gpt-oss-120b`         | `openai/gpt-oss-120b` (swap the node) |
+| Model             | `Groq gpt-oss-20b`          | `openai/gpt-oss-20b` (swap the node; not the shared `gpt-oss-120b` critic-lane model) |
 | Agent iterations  | `AI Agent` options          | 5 max                                 |
 | Execution timeout | workflow settings           | 900 s                                 |
 
