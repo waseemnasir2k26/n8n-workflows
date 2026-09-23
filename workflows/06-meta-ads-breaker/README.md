@@ -306,6 +306,26 @@ normalize`, `WRITE WHITELIST GATE` and `Run summary` are `runOnceForAllItems`
   `idempotency_key` before `WRITE WHITELIST GATE` that this build did not add
   (the node budget was frozen before recording the canvas tours). A production fork
   adds that lookup the same way `Store snapshot` added `actions_today`.
+- **Rule order: R1 spend-cap is evaluated before R2 zero-lead; with equal caps R1
+  fires** -- set `zero_lead_spend_usd` below `daily_spend_cap_usd` if you want the
+  zero-lead rule to be the one that fires. `Evaluate breaker` checks rules in a
+  fixed order (api-error trip -> min-data guard -> lag guard -> R3 CPL -> R1 spend
+  cap -> R2 zero-lead) and returns on the first match, so a later rule in that order
+  never runs once an earlier one has already fired. The reference run's own caps row
+  has `daily_spend_cap_usd = zero_lead_spend_usd = 60.00`; at spend $70.15 with 0
+  leads, R1 fires first and R2 is never evaluated for that row -- this is correct
+  behavior against the real rule order, not a bug, but it means two caps set to the
+  same number will always resolve to R1's wording on the receipt.
+- **Idempotency key uses the masked `adset_ref`, not the raw ad-set id.** `Evaluate
+breaker`'s `adsetRefForKey` reads `norm.adset_ref || "unknown"` -- an earlier
+  version fell back to the raw `norm.adset_id_for_gate` first, which leaked the
+  unmasked id into `ep06_receipts.idempotency_key` (a table the masking rule
+  explicitly covers). Never reintroduce a raw-id fallback ahead of `adset_ref` here.
+- **`Run summary` has no DB write of its own (follow-up).** It computes the numbers
+  the video quotes from the same execution's data, but does not persist them --
+  `ep06_run_summary` in this repo's reference deployment was backfilled by hand from
+  psql for the recorded run. A production fork should give `Run summary` its own
+  Postgres insert so this table stays live without a manual step.
 - **This is a portfolio/demo repo, not a production pager.** Wiring this at a real
   agency ad account still needs the cooldown lookup above and a second human eyeball
   on the `ep06_caps` row before `dry_run` ever flips to `false`.
