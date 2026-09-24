@@ -1,0 +1,7 @@
+installed.json
+.cred_ids.env
+.installed_extra.jsonl
+.install_seconds
+.existing_names.json
+__pycache__/
+

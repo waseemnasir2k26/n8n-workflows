@@ -1,0 +1,53 @@
+EP10 The Lead Stack -- throwaway demo instance ids (n8n-stack-demo, 2026-09-24)
+
+THROWAWAY INSTANCE (not production -- see STACK.md "Infra")
+  Host: Contabo VPS 169.58.154.106, container n8n-stack-demo, image n8nio/n8n:2.33.7
+  Bound: 127.0.0.1:5679 only (never public). Tunnel: ssh -L 5679:127.0.0.1:5679 root@169.58.154.106
+  Postgres: database stack_demo on the existing n8n-postgres-1 container (never the production n8n database)
+  Owner account: waseembali2k26@gmail.com
+  API key: C:\Users\info\.secrets\stack-demo.key (local) / /root/.stack_demo_apikey (VPS, root-only 600)
+
+MEASURED RUN (2026-09-24, clean install after a proven rollback):
+  install.sh elapsed: 4s (cap 600s) -- first cold-container run measured 8s
+  Collision refusal: second install.sh run on a populated instance -> exit 2, 0 changes
+    (before: 5 workflows / 4 data tables -- after: 5 workflows / 4 data tables)
+  active:false GET-back: 5/5 asserted
+  Rollback proof: install.sh --rollback on a populated instance -> 0 workflows / 0 data tables, installed.json removed
+  acceptance.sh: PASS (7/7 checks)
+  Production workflow count: 83 before this build started, 83 after (n8n.skynetjoe.com, read-only GET)
+
+FIVE IMPORTED WORKFLOWS (this run's ids -- re-running install.sh mints new ones,
+see installed.json after each run):
+  03 Maps Lead Harvest (Apify -> Postgres)                              id: 44M056V6z4NT4Hvu  active:false
+  Speed-to-Lead (simulated demo)                                        id: gO2MejbhG4VPJFRU  active:false
+  EP09 Lead-draft personaliser (never sends)                            id: qmFEQGKLYpD8YMi9  active:false
+  EP07 Inbox Router (rules-first, drafts only, no send)                 id: RvUoRgpVGV4NWsHR  active:false
+  EP08 Silent-lane watchdog (built after 6-day dead lane, 0 errors)     id: 04PXWzHWrNxMfQIb  active:false
+
+DATA TABLES CREATED (dry_run:true except ep09_caps -- see STACK.md):
+  ep07_caps   id: YSqTOWTF8YTeVe44
+  ep08_lanes  id: yrU3DCbWAIjKUvag
+  ep08_caps   id: D7GOC9QYN2xeczkz
+  ep09_caps   id: xrWmK4RUjYjzKU9z
+
+CREDENTIALS CREATED (ids only, no values -- REPLACE_ME left in place for
+Apify / OpenRouter / IMAP since those secrets were not supplied to this run):
+  Postgres (stack-demo)               id: OZz0QFNkvnSJQyJu
+  n8n API (stack-demo, self)          id: BiLUyMkhQYmSI6WG
+
+EP08 LANE REGISTRATIONS (kind:manual-run, FNV-1a lane_ref matching EP08's
+own "Mask lane names" hash):
+  03 Maps Lead Harvest (Apify -> Postgres)                          -> lane_ba6f2ea0
+  Speed-to-Lead (simulated demo)                                    -> lane_42af2ed1
+  EP09 Lead-draft personaliser (never sends)                        -> lane_2f65d0a8
+  EP07 Inbox Router (rules-first, drafts only, no send)             -> lane_172bb5ea
+  EP08 Silent-lane watchdog (built after 6-day dead lane, 0 errors) -> lane_fef50f9e
+
+SEEDED LEAD: lead_ref stack-demo-0001, synthetic, labelled in seed/lead.json.
+
+installed.json (the exact rollback manifest for the run above) is NOT
+committed -- regenerated per install run. installed.json.example in this
+folder shows its shape.
+
+Left running on purpose for A2/A3 to record on. See STACK.md "Teardown" for
+the exact commands when they are done -- do not tear down before then.

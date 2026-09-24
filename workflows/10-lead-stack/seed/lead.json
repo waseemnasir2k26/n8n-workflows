@@ -1,0 +1,14 @@
+{
+  "lead_ref": "stack-demo-0001",
+  "is_synthetic": true,
+  "label": "SYNTHETIC TEST LEAD -- generated for the n8n Workflows series EP10 install demo, never a real business",
+  "business_name": "Doggo's Denim Detailing (fictional)",
+  "niche": "roofing contractors",
+  "city": "Denver",
+  "state": "CO",
+  "phone": "555-0142",
+  "website": "example-stack-demo-lead.invalid",
+  "email": "owner@example-stack-demo-lead.invalid",
+  "issue": "roof leak after last week's hailstorm",
+  "source": "seed/lead.json"
+}

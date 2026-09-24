@@ -1,0 +1,57 @@
+{
+  "workflows": [
+    {
+      "brick": "03-maps-lead-harvest",
+      "name": "03 Maps Lead Harvest (Apify -> Postgres)",
+      "id": "44M056V6z4NT4Hvu"
+    },
+    {
+      "brick": "02-speed-to-lead",
+      "name": "Speed-to-Lead (simulated demo)",
+      "id": "gO2MejbhG4VPJFRU"
+    },
+    {
+      "brick": "09-lead-draft-personaliser",
+      "name": "EP09 Lead-draft personaliser (never sends)",
+      "id": "qmFEQGKLYpD8YMi9"
+    },
+    {
+      "brick": "07-inbox-router-drafts-only",
+      "name": "EP07 Inbox Router (rules-first, drafts only, no send)",
+      "id": "RvUoRgpVGV4NWsHR"
+    },
+    {
+      "brick": "08-silent-lane-watchdog",
+      "name": "EP08 Silent-lane watchdog (built after 6-day dead lane, 0 errors)",
+      "id": "04PXWzHWrNxMfQIb"
+    }
+  ],
+  "data_tables": [
+    {
+      "id": "YSqTOWTF8YTeVe44",
+      "name": "ep07_caps"
+    },
+    {
+      "id": "yrU3DCbWAIjKUvag",
+      "name": "ep08_lanes"
+    },
+    {
+      "id": "D7GOC9QYN2xeczkz",
+      "name": "ep08_caps"
+    },
+    {
+      "id": "xrWmK4RUjYjzKU9z",
+      "name": "ep09_caps"
+    }
+  ],
+  "credentials": [
+    {
+      "id": "OZz0QFNkvnSJQyJu",
+      "name": "Postgres (stack-demo)"
+    },
+    {
+      "id": "BiLUyMkhQYmSI6WG",
+      "name": "n8n API (stack-demo, self)"
+    }
+  ]
+}
