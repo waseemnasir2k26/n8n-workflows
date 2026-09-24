@@ -1,0 +1,31 @@
+EP08 -- Silent-lane watchdog -- deployed ids (n8n.skynetjoe.com, VPS 169.58.154.106)
+Deployed 2026-09-24. Both workflows: active=false (verified via GET-back after every PUT).
+
+Workflow  EP08 Silent-lane watchdog (built after 6-day dead lane, 0 errors)
+  id: 03KDG7rbAyQaUlZM
+  active: false
+  settings.errorWorkflow: 4VA64zHsDttahLA3
+
+Workflow  EP08 Error handler (logs to ep08_errors, bumps consecutive_errors)
+  id: 4VA64zHsDttahLA3
+  active: false
+
+Data Table  ep08_lanes  (expectation table)
+  id: X1A30pOe29Ce8vPM
+
+Data Table  ep08_caps  (cap sheet, one row)
+  id: 3nEkJUCOVVVwTJia
+
+Postgres tables (ep08_lane_checks, ep08_incidents, ep08_run_summary, ep08_errors)
+  created via schema.sql, `docker exec -i n8n-postgres-1 psql -U n8n -d n8n < schema.sql`
+
+Credentials reused (GET-verified present, never modified):
+  n8n Self API Key (X-N8N-API-KEY)  httpHeaderAuth  id Cb1GZg5b25rMyDX6
+  LG Postgres                       postgres        id 92qip0eS5E8Lx3TH
+
+Manual proof-run executions (real, on this instance, via the internal run API --
+the public API has no execute endpoint; a UI session cookie was minted on-box
+per reference-n8n-mint-ui-session-token, matching the owner account, never used
+against any client instance):
+  execution 34597 -- status success -- lanes_evaluated 63, missed_count 1,
+    incidents_opened 1, incidents_recovered 1 -- see README "Live proof run".

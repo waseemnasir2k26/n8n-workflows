@@ -1,0 +1,204 @@
+{
+  "_purpose": "Offline DRY RUN fixture for the EP08 evaluator. Mirrors the real pipeline's node outputs (List workflows -> Mask lane names -> Load expectations -> Last success per lane -> Load caps) so the Evaluate obligation / Write whitelist gate / Run summary code can be run standalone with `node run_dry_run.js` (see README) without touching the live n8n instance or Postgres. All lane_ref values here are synthetic (sample_mode:true) -- never real workflow names.",
+  "generated_at": "2026-09-24T15:00:00Z",
+
+  "lanes": [
+    {
+      "sample_mode": true,
+      "lane_ref": "lane_01",
+      "workflow_id": "sample-lane_01",
+      "active": true
+    },
+    {
+      "sample_mode": true,
+      "lane_ref": "lane_02",
+      "workflow_id": "sample-lane_02",
+      "active": true
+    },
+    {
+      "sample_mode": true,
+      "lane_ref": "lane_03",
+      "workflow_id": "sample-lane_03",
+      "active": true
+    },
+    {
+      "sample_mode": true,
+      "lane_ref": "lane_04",
+      "workflow_id": "sample-lane_04",
+      "active": true
+    },
+    {
+      "sample_mode": true,
+      "lane_ref": "lane_05",
+      "workflow_id": "sample-lane_05",
+      "active": true
+    },
+    {
+      "sample_mode": true,
+      "lane_ref": "lane_06",
+      "workflow_id": "sample-lane_06",
+      "active": true
+    },
+    {
+      "sample_mode": true,
+      "lane_ref": "lane_07",
+      "workflow_id": "sample-lane_07",
+      "active": true
+    },
+    {
+      "sample_mode": true,
+      "lane_ref": "lane_08",
+      "workflow_id": "sample-lane_08",
+      "active": true
+    },
+    {
+      "sample_mode": true,
+      "lane_ref": "lane_09",
+      "workflow_id": "sample-lane_09",
+      "active": false
+    }
+  ],
+
+  "expectations": [
+    {
+      "lane_ref": "lane_01",
+      "kind": "scheduled",
+      "expected_interval_min": 360,
+      "upstream_count_window": null,
+      "cooldown_min": 1440,
+      "_label": "must trip -- 6h schedule, last success 10 days ago"
+    },
+    {
+      "lane_ref": "lane_02",
+      "kind": "scheduled",
+      "expected_interval_min": 1440,
+      "upstream_count_window": null,
+      "cooldown_min": 1440,
+      "_label": "healthy -- 24h schedule, last success 2h ago"
+    },
+    {
+      "lane_ref": "lane_03",
+      "kind": "event-driven",
+      "expected_interval_min": null,
+      "upstream_count_window": 0,
+      "cooldown_min": 1440,
+      "_label": "must NOT trip -- LG-DEMO analog: webhook lane, 0 upstream arrivals, 0 runs = quiet is healthy"
+    },
+    {
+      "lane_ref": "lane_04",
+      "kind": "event-driven",
+      "expected_interval_min": null,
+      "upstream_count_window": 5,
+      "cooldown_min": 1440,
+      "_label": "must trip -- 5 upstream arrivals but 0 runs = a genuine miss"
+    },
+    {
+      "lane_ref": "lane_05",
+      "kind": "upstream-count",
+      "expected_interval_min": null,
+      "upstream_count_window": 12,
+      "cooldown_min": 1440,
+      "_label": "must trip -- 12 upstream rows, only 3 runs"
+    },
+    {
+      "lane_ref": "lane_06",
+      "kind": "upstream-count",
+      "expected_interval_min": null,
+      "upstream_count_window": 10,
+      "cooldown_min": 1440,
+      "_label": "healthy -- 10 upstream rows, 10 runs, matched"
+    },
+    {
+      "lane_ref": "lane_07",
+      "kind": "manual-run",
+      "expected_interval_min": 1440,
+      "upstream_count_window": null,
+      "cooldown_min": 1440,
+      "_label": "reminder only, never an incident -- manual-run overdue 3 days"
+    },
+    {
+      "lane_ref": "lane_08",
+      "kind": "scheduled",
+      "expected_interval_min": 360,
+      "upstream_count_window": null,
+      "cooldown_min": 1440,
+      "_label": "unmeasurable -- no saved success on record; must say 'could not measure', never silent"
+    },
+    {
+      "lane_ref": "lane_09",
+      "kind": "event-driven",
+      "expected_interval_min": null,
+      "upstream_count_window": 4,
+      "cooldown_min": 1440,
+      "_label": "off -- active:false; a decision, never a failure, skipped before obligation is even checked"
+    }
+  ],
+
+  "success_rows": [
+    {
+      "workflow_id": "sample-lane_01",
+      "last_success_at": "2026-09-14T09:00:00Z",
+      "run_count_window": 4
+    },
+    {
+      "workflow_id": "sample-lane_02",
+      "last_success_at": "2026-09-24T13:00:00Z",
+      "run_count_window": 7
+    },
+    {
+      "workflow_id": "sample-lane_03",
+      "last_success_at": null,
+      "run_count_window": 0
+    },
+    {
+      "workflow_id": "sample-lane_04",
+      "last_success_at": "2026-09-10T08:00:00Z",
+      "run_count_window": 0
+    },
+    {
+      "workflow_id": "sample-lane_05",
+      "last_success_at": "2026-09-23T11:00:00Z",
+      "run_count_window": 3
+    },
+    {
+      "workflow_id": "sample-lane_06",
+      "last_success_at": "2026-09-24T06:00:00Z",
+      "run_count_window": 10
+    },
+    {
+      "workflow_id": "sample-lane_07",
+      "last_success_at": "2026-09-21T15:00:00Z",
+      "run_count_window": 1
+    },
+    {
+      "workflow_id": "sample-lane_08",
+      "last_success_at": null,
+      "run_count_window": 0
+    },
+    {
+      "workflow_id": "sample-lane_09",
+      "last_success_at": "2026-09-16T00:00:00Z",
+      "run_count_window": 0
+    }
+  ],
+
+  "caps": {
+    "max_incidents_per_run": 3,
+    "reminders_per_lane_per_day": 1,
+    "cooldown_min": 1440,
+    "dry_run": true,
+    "kill_enabled": true,
+    "breaker_tripped": false,
+    "consecutive_errors": 0,
+    "error_trip_threshold": 3
+  },
+
+  "expected_result_summary": {
+    "incidents_opened": ["lane_01", "lane_04", "lane_05"],
+    "recovered_or_healthy": ["lane_02", "lane_06"],
+    "reminder_manual_only": ["lane_07"],
+    "none_unmeasurable": ["lane_08"],
+    "none_off": ["lane_09"],
+    "must_not_incident": ["lane_03", "lane_07", "lane_08", "lane_09"]
+  }
+}
