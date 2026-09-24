@@ -19,7 +19,10 @@
       "name": "Every 15 minutes: IMAP poll (own mailbox)",
       "type": "n8n-nodes-base.emailReadImap",
       "typeVersion": 2.2,
-      "position": [-900, 200],
+      "position": [
+        -900,
+        200
+      ],
       "disabled": true,
       "credentials": {
         "imap": {
@@ -34,7 +37,10 @@
       "name": "Manual Test",
       "type": "n8n-nodes-base.manualTrigger",
       "typeVersion": 1,
-      "position": [-900, 420]
+      "position": [
+        -900,
+        420
+      ]
     },
     {
       "parameters": {
@@ -53,7 +59,10 @@
       "name": "Load caps",
       "type": "n8n-nodes-base.dataTable",
       "typeVersion": 1.1,
-      "position": [-660, 340]
+      "position": [
+        -660,
+        340
+      ]
     },
     {
       "parameters": {
@@ -72,7 +81,10 @@
       "name": "Load sample inbox",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [-660, 520],
+      "position": [
+        -660,
+        520
+      ],
       "disabled": true
     },
     {
@@ -85,7 +97,10 @@
       "name": "Mask + normalize",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [-420, 340]
+      "position": [
+        -420,
+        340
+      ]
     },
     {
       "parameters": {
@@ -97,7 +112,10 @@
       "name": "Rules router",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [-180, 340]
+      "position": [
+        -180,
+        340
+      ]
     },
     {
       "parameters": {
@@ -125,7 +143,10 @@
       "name": "Route: rules or model",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
-      "position": [60, 340]
+      "position": [
+        60,
+        340
+      ]
     },
     {
       "parameters": {
@@ -137,7 +158,10 @@
       "name": "Count LLM calls today",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.7,
-      "position": [300, 220],
+      "position": [
+        300,
+        220
+      ],
       "credentials": {
         "postgres": {
           "id": "REPLACE_ME",
@@ -155,7 +179,10 @@
       "name": "Guard: cap",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [520, 220]
+      "position": [
+        520,
+        220
+      ]
     },
     {
       "parameters": {
@@ -189,7 +216,10 @@
       "name": "LLM classify + draft",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [760, 220],
+      "position": [
+        760,
+        220
+      ],
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 20000,
@@ -210,7 +240,10 @@
       "name": "Confidence gate",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [300, 460]
+      "position": [
+        300,
+        460
+      ]
     },
     {
       "parameters": {
@@ -224,7 +257,10 @@
       "name": "Write inbox row",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.7,
-      "position": [540, 460],
+      "position": [
+        540,
+        460
+      ],
       "credentials": {
         "postgres": {
           "id": "REPLACE_ME",
@@ -242,7 +278,10 @@
       "name": "WRITE WHITELIST GATE",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [780, 460]
+      "position": [
+        780,
+        460
+      ]
     },
     {
       "parameters": {
@@ -270,7 +309,10 @@
       "name": "Dry run?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
-      "position": [1000, 460]
+      "position": [
+        1000,
+        460
+      ]
     },
     {
       "parameters": {
@@ -283,7 +325,10 @@
       "name": "Apply label",
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.1,
-      "position": [1240, 560],
+      "position": [
+        1240,
+        560
+      ],
       "disabled": true,
       "credentials": {
         "gmailOAuth2": {
@@ -296,13 +341,16 @@
       "parameters": {
         "mode": "runOnceForAllItems",
         "language": "javaScript",
-        "jsCode": "// One summary item, read straight off the execution panel. Runs regardless of\n// which branch (dry-run or would-apply) each item took.\nfunction all(name) {\n  try {\n    return $(name).all().map(function (i) { return i.json; });\n  } catch (e) {\n    return [];\n  }\n}\n\nvar masked = all('Mask + normalize');\nvar routed = all('Rules router');\nvar gated = all('WRITE WHITELIST GATE');\nvar written = all('Write inbox row');\n\nvar rulesHandled = 0, modelHandled = 0, leads = 0, needsReview = 0, spamCount = 0, techCount = 0, existingCount = 0;\nfor (var i = 0; i < written.length; i++) {\n  var w = written[i];\n  if (w.route === 'rules') rulesHandled++;\n  if (w.route === 'model') modelHandled++;\n  if (w.original_classification === 'lead' || w.classification === 'lead') leads++;\n  if (w.classification === 'needs_review') needsReview++;\n  if (w.original_classification === 'spam') spamCount++;\n  if (w.original_classification === 'technical') techCount++;\n  if (w.original_classification === 'existing_client') existingCount++;\n}\n\nvar cfg = {};\ntry {\n  cfg = $('Load caps').first().json || {};\n} catch (e) {\n  cfg = {};\n}\n\nreturn [{ json: {\n  msgs_in: masked.length,\n  rules_handled: rulesHandled,\n  model_handled: modelHandled,\n  leads: leads,\n  needs_review: needsReview,\n  spam: spamCount,\n  technical: techCount,\n  existing_client: existingCount,\n  sent: 0,\n  labels_gated: gated.length,\n  rows_written: written.length,\n  dry_run: cfg.dry_run === true\n} }];\n"
+        "jsCode": "// One summary item, read straight off the execution panel. Runs regardless of\n// which branch (dry-run or would-apply) each item took.\nfunction all(name) {\n  try {\n    return $(name).all().map(function (i) { return i.json; });\n  } catch (e) {\n    return [];\n  }\n}\n\nvar masked = all('Mask + normalize');\nvar routed = all('Rules router');\nvar gated = all('WRITE WHITELIST GATE');\nvar written = all('Write inbox row');\n\nvar rulesHandled = 0, modelHandled = 0, leads = 0, needsReview = 0, spamCount = 0, techCount = 0, existingCount = 0;\nfor (var i = 0; i < written.length; i++) {\n  var w = written[i];\n  if (w.route === 'rules') rulesHandled++;\n  if (w.route === 'model') modelHandled++;\n  if (w.classification === 'lead') leads++;\n  if (w.classification === 'needs_review') needsReview++;\n  if (w.classification === 'spam') spamCount++;\n  if (w.classification === 'technical') techCount++;\n  if (w.classification === 'existing_client') existingCount++;\n}\n\nvar cfg = {};\ntry {\n  cfg = $('Load caps').first().json || {};\n} catch (e) {\n  cfg = {};\n}\n\nreturn [{ json: {\n  msgs_in: masked.length,\n  rules_handled: rulesHandled,\n  model_handled: modelHandled,\n  leads: leads,\n  needs_review: needsReview,\n  spam: spamCount,\n  technical: techCount,\n  existing_client: existingCount,\n  sent: 0,\n  labels_gated: gated.length,\n  rows_written: written.length,\n  dry_run: cfg.dry_run === true\n} }];\n"
       },
       "id": "ep07-run-summary",
       "name": "Run summary",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1480, 460]
+      "position": [
+        1480,
+        460
+      ]
     },
     {
       "parameters": {
@@ -314,7 +362,10 @@
       "name": "Note: what this does",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
-      "position": [-900, -80]
+      "position": [
+        -900,
+        -80
+      ]
     },
     {
       "parameters": {
@@ -326,69 +377,190 @@
       "name": "Note: no send node",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
-      "position": [780, -80]
+      "position": [
+        780,
+        -80
+      ]
     }
   ],
   "connections": {
     "Every 15 minutes: IMAP poll (own mailbox)": {
       "main": [
         [
-          { "node": "Load caps", "type": "main", "index": 0 },
-          { "node": "Mask + normalize", "type": "main", "index": 0 }
+          {
+            "node": "Load caps",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Mask + normalize",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
     "Manual Test": {
       "main": [
         [
-          { "node": "Load caps", "type": "main", "index": 0 },
-          { "node": "Load sample inbox", "type": "main", "index": 0 }
+          {
+            "node": "Load caps",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Load sample inbox",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
     "Load sample inbox": {
-      "main": [[{ "node": "Mask + normalize", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Mask + normalize",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Mask + normalize": {
-      "main": [[{ "node": "Rules router", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Rules router",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Rules router": {
       "main": [
-        [{ "node": "Route: rules or model", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Route: rules or model",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Route: rules or model": {
       "main": [
-        [{ "node": "Count LLM calls today", "type": "main", "index": 0 }],
-        [{ "node": "Confidence gate", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Count LLM calls today",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Confidence gate",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Count LLM calls today": {
-      "main": [[{ "node": "Guard: cap", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Guard: cap",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Guard: cap": {
-      "main": [[{ "node": "LLM classify + draft", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "LLM classify + draft",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "LLM classify + draft": {
-      "main": [[{ "node": "Confidence gate", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Confidence gate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Confidence gate": {
-      "main": [[{ "node": "Write inbox row", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Write inbox row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Write inbox row": {
-      "main": [[{ "node": "WRITE WHITELIST GATE", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "WRITE WHITELIST GATE",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "WRITE WHITELIST GATE": {
-      "main": [[{ "node": "Dry run?", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Dry run?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Dry run?": {
       "main": [
-        [{ "node": "Run summary", "type": "main", "index": 0 }],
-        [{ "node": "Apply label", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Run summary",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Apply label",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Apply label": {
-      "main": [[{ "node": "Run summary", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Run summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "settings": {

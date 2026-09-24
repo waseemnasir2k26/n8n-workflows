@@ -314,6 +314,16 @@ samples/inbox-sample.json        13 synthetic rows: 3 lead, 3 technical, 3 spam,
 ids.txt                          VPS workflow/Data Table ids, credential ids (no values)
 ```
 
+## Build notes
+
+- 2026-09-25: the `Run summary` Code node's `spam`/`technical`/`existing_client`/`model_handled`
+  counters were reading a field (`original_classification`) that `Write inbox row`'s RETURNING
+  clause never carries -- silently undercounted those buckets to 0 on every real run. Fixed to
+  read `classification` (the field the row actually returns for every route, rules or model).
+  `rules_handled`/`model_handled` off `route`, `leads` off `classification === 'lead'` unchanged.
+  Verified against psql ground truth for execution 34716: 13 in, 12 rules / 1 model, 5 spam,
+  3 lead, 3 technical, 2 existing_client.
+
 ## Install it for your business
 
 WhatsApp +92 300 1001957 · Waseem Nasir, SkynetLabs
