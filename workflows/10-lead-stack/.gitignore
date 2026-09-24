@@ -4,4 +4,11 @@ installed.json
 .install_seconds
 .existing_names.json
 __pycache__/
+.manual_pass_results.json*
+.wf_*.json
+.run_*.json
+.pin_*.json
+.run_resp_*.json
+.seed_fields
+
 

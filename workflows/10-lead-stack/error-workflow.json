@@ -1,0 +1,99 @@
+{
+  "name": "EP10 · Stack error handler",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "ep10-error-trigger",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO stack_leads (lead_ref, business_name, source, is_synthetic) VALUES ('__system__','system','error-sentinel',true) ON CONFLICT (lead_ref) DO NOTHING; INSERT INTO stack_events (lead_ref, brick, step_order, status, table_name, detail) VALUES ('__system__', $1, 0, 'error_logged', NULL, $2::jsonb) RETURNING id;",
+        "options": {
+          "queryReplacement": "={{ [ 'error:' + ($json.workflow && $json.workflow.name || 'unknown') + ':' + (($json.execution && $json.execution.id) || $now.toMillis()), JSON.stringify({ node: ($json.execution && $json.execution.lastNodeExecuted) || null, message: ($json.execution && $json.execution.error && $json.execution.error.message) || 'unknown error', execution_id: ($json.execution && $json.execution.id) || null }) ] }}"
+        }
+      },
+      "id": "ep10-error-log",
+      "name": "Log error",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [240, 0],
+      "credentials": {
+        "postgres": {
+          "id": "REPLACE_ME",
+          "name": "Postgres (REPLACE_ME)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "REPLACE_ME",
+          "cachedResultName": "stack_caps"
+        },
+        "filters": {},
+        "returnAll": true
+      },
+      "id": "ep10-error-read-caps",
+      "name": "Read stack_caps",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [480, 0]
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "update",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "REPLACE_ME",
+          "cachedResultName": "stack_caps"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            { "keyName": "cap_id", "condition": "eq", "keyValue": "stack" }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "cap_id": "stack",
+            "consecutive_errors": "={{ Number($json.consecutive_errors || 0) + 1 }}",
+            "breaker_tripped": "={{ (Number($json.consecutive_errors || 0) + 1) >= Number($json.error_trip_threshold || 3) }}"
+          },
+          "matchingColumns": ["cap_id"],
+          "schema": []
+        }
+      },
+      "id": "ep10-error-bump-counter",
+      "name": "Bump stack_caps",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [720, 0]
+    }
+  ],
+  "connections": {
+    "Error Trigger": {
+      "main": [[{ "node": "Log error", "type": "main", "index": 0 }]]
+    },
+    "Log error": {
+      "main": [[{ "node": "Read stack_caps", "type": "main", "index": 0 }]]
+    },
+    "Read stack_caps": {
+      "main": [[{ "node": "Bump stack_caps", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

@@ -1,47 +1,67 @@
-EP10 The Lead Stack -- throwaway demo instance ids (n8n-stack-demo, 2026-09-24)
+EP10 The Lead Stack -- throwaway demo instance ids (n8n-stack-demo, 2026-09-24, follow-up build)
 
 THROWAWAY INSTANCE (not production -- see STACK.md "Infra")
-  Host: a VPS YOUR-VPS-HOST, container n8n-stack-demo, image n8nio/n8n:2.33.7
-  Bound: 127.0.0.1:5679 only (never public). Tunnel: ssh -L 5679:127.0.0.1:5679 root@YOUR-VPS-HOST
-  Postgres: database stack_demo on the existing n8n-postgres-1 container (never the production n8n database)
-  Owner account: waseembali2k26@gmail.com
-  API key: ~/.secrets/stack-demo.key (local) / <root-only key file on the VPS> (VPS, root-only 600)
+  n8n 2.33.7 container, bound 127.0.0.1:5679 only (never public). Reach via an
+  SSH tunnel to the host it runs on: ssh -L 5679:127.0.0.1:5679 <the ops VPS>
+  Postgres: a separate database, stack_demo, on the same Postgres container the
+  production n8n database also lives on (never the production database itself).
+  Owner account created via /rest/owner/setup on the throwaway instance only.
+  API key: local secrets file outside this repo (never committed, never
+  printed). VPS copy: a root-only file, chmod 600.
 
-MEASURED RUN (2026-09-24, clean install after a proven rollback):
-  install.sh elapsed: 4s (cap 600s) -- first cold-container run measured 8s
+MEASURED RUN (2026-09-24, follow-up build -- caps Data Table + shared error
+handler + real manual executions):
+  install.sh elapsed: ~5-6s across four separate clean runs this session (cap 600s)
   Collision refusal: second install.sh run on a populated instance -> exit 2, 0 changes
-    (before: 5 workflows / 4 data tables -- after: 5 workflows / 4 data tables)
-  active:false GET-back: 5/5 asserted
-  Rollback proof: install.sh --rollback on a populated instance -> 0 workflows / 0 data tables, installed.json removed
-  acceptance.sh: PASS (7/7 checks)
-  Production workflow count: 83 before this build started, 83 after (n8n.skynetjoe.com, read-only GET)
+  active:false GET-back: 6/6 asserted (5 bricks + error handler), both at
+    import time and again after the PUT wiring settings.errorWorkflow
+  Rollback proof: install.sh --rollback -> 6 workflows/5 data tables -> 0/0,
+    stack_leads + stack_events Postgres tables dropped, installed.json removed
+  acceptance.sh: PASS (12/12 checks: 5 execution-id checks + 6 table-row
+    checks + installed.json sanity)
+  Production workflow count: 83 before this entire build, 83 after (read-only
+    GET only, never a write)
 
-FIVE IMPORTED WORKFLOWS (this run's ids -- re-running install.sh mints new ones,
-see installed.json after each run):
-  03 Maps Lead Harvest (Apify -> Postgres)                              id: 44M056V6z4NT4Hvu  active:false
-  Speed-to-Lead (simulated demo)                                        id: gO2MejbhG4VPJFRU  active:false
-  EP09 Lead-draft personaliser (never sends)                            id: qmFEQGKLYpD8YMi9  active:false
-  EP07 Inbox Router (rules-first, drafts only, no send)                 id: RvUoRgpVGV4NWsHR  active:false
-  EP08 Silent-lane watchdog (built after 6-day dead lane, 0 errors)     id: 04PXWzHWrNxMfQIb  active:false
+FIVE IMPORTED WORKFLOWS + ERROR HANDLER (this run's ids -- re-running
+install.sh mints new ones, see installed.json after each run):
+  03 Maps Lead Harvest (Apify -> Postgres)                              id: HqffGT3RZKpc6K5o  active:false
+  Speed-to-Lead (simulated demo)                                        id: f5gQBq2pYqf8YSgu  active:false
+  EP09 Lead-draft personaliser (never sends)                            id: CcyimwqLSQceVFgf  active:false
+  EP07 Inbox Router (rules-first, drafts only, no send)                 id: lmtwuf0MVH8v3Ho2  active:false
+  EP08 Silent-lane watchdog (built after 6-day dead lane, 0 errors)     id: WekJX57bYaTSP53Z  active:false
+  EP10 · Stack error handler                                           id: lUfgK8pDB70D7BvA  active:false
+    (wired as settings.errorWorkflow on all five bricks above, via PUT,
+    active:false re-asserted after every PUT)
+
+REAL MANUAL EXECUTIONS -- final run this session, one per brick, in order,
+each a genuine n8n execution id (GET /api/v1/executions?workflowId=... >= 1
+per brick, confirmed by acceptance.sh):
+  [1] 03-maps-lead-harvest              execution 19  status: success  (real Apify Maps search + Postgres upsert, 175 rows in ep03_leads)
+  [2] 02-speed-to-lead                  execution 20  status: error    (armed via internal run API, fired for real via an actual POST to
+                                                                         the test-webhook URL with the seeded lead's fields; writes a real
+                                                                         demo_sessions row, then errors -- no Anthropic credential supplied
+                                                                         to this demo)
+  [3] 09-lead-draft-personaliser        execution 21  status: success  (real OpenRouter call, real ep09_drafts row)
+  [4] 07-inbox-router-drafts-only       execution 22  status: success  (Manual Test -> Load sample inbox, the brick's own manual-trigger
+                                                                         design -- DRY RUN, mail read skipped, never live IMAP)
+  [5] 08-silent-lane-watchdog           execution 23  status: error    (List workflows node hardcodes https://; this throwaway instance is
+                                                                         plain HTTP only by design -- environment TLS mismatch, not a stub)
+
+  Error handler proof run (separate, direct): execution id present, status
+  success, wrote one stack_events row, bumped stack_caps.consecutive_errors
+  0 -> 1 (confirmed via the public Data Table API). See STACK.md "Shared
+  error handling" for why the AUTOMATIC firing path can't be observed live
+  on a never-activated instance.
 
 DATA TABLES CREATED (dry_run:true except ep09_caps -- see STACK.md):
-  ep07_caps   id: YSqTOWTF8YTeVe44
-  ep08_lanes  id: yrU3DCbWAIjKUvag
-  ep08_caps   id: D7GOC9QYN2xeczkz
-  ep09_caps   id: xrWmK4RUjYjzKU9z
+  ep07_caps, ep08_lanes, ep08_caps, ep09_caps, stack_caps (one shared cap sheet)
 
-CREDENTIALS CREATED (ids only, no values -- REPLACE_ME left in place for
-Apify / OpenRouter / IMAP since those secrets were not supplied to this run):
-  Postgres (stack-demo)               id: OZz0QFNkvnSJQyJu
-  n8n API (stack-demo, self)          id: BiLUyMkhQYmSI6WG
-
-EP08 LANE REGISTRATIONS (kind:manual-run, FNV-1a lane_ref matching EP08's
-own "Mask lane names" hash):
-  03 Maps Lead Harvest (Apify -> Postgres)                          -> lane_ba6f2ea0
-  Speed-to-Lead (simulated demo)                                    -> lane_42af2ed1
-  EP09 Lead-draft personaliser (never sends)                        -> lane_2f65d0a8
-  EP07 Inbox Router (rules-first, drafts only, no send)             -> lane_172bb5ea
-  EP08 Silent-lane watchdog (built after 6-day dead lane, 0 errors) -> lane_fef50f9e
+CREDENTIALS CREATED (ids only, no values -- REPLACE_ME left in place only for
+IMAP, since that secret was not available to this build; Apify + OpenRouter +
+Postgres + the self n8n API credential were all wired with real values):
+  Postgres (stack-demo), Apify Token (stack-demo), OpenRouter (stack-demo,
+  header auth), OpenRouter (stack-demo, openAI-compatible), n8n API
+  (stack-demo, self)
 
 SEEDED LEAD: lead_ref stack-demo-0001, synthetic, labelled in seed/lead.json.
 
@@ -50,4 +70,4 @@ committed -- regenerated per install run. installed.json.example in this
 folder shows its shape.
 
 Left running on purpose for A2/A3 to record on. See STACK.md "Teardown" for
-the exact commands when they are done -- do not tear down before then.
+the exact steps when they are done -- do not tear down before then.

@@ -3,54 +3,75 @@
     {
       "brick": "03-maps-lead-harvest",
       "name": "03 Maps Lead Harvest (Apify -> Postgres)",
-      "id": "44M056V6z4NT4Hvu"
+      "id": "HqffGT3RZKpc6K5o"
     },
     {
       "brick": "02-speed-to-lead",
       "name": "Speed-to-Lead (simulated demo)",
-      "id": "gO2MejbhG4VPJFRU"
+      "id": "f5gQBq2pYqf8YSgu"
     },
     {
       "brick": "09-lead-draft-personaliser",
       "name": "EP09 Lead-draft personaliser (never sends)",
-      "id": "qmFEQGKLYpD8YMi9"
+      "id": "CcyimwqLSQceVFgf"
     },
     {
       "brick": "07-inbox-router-drafts-only",
       "name": "EP07 Inbox Router (rules-first, drafts only, no send)",
-      "id": "RvUoRgpVGV4NWsHR"
+      "id": "lmtwuf0MVH8v3Ho2"
     },
     {
       "brick": "08-silent-lane-watchdog",
       "name": "EP08 Silent-lane watchdog (built after 6-day dead lane, 0 errors)",
-      "id": "04PXWzHWrNxMfQIb"
+      "id": "WekJX57bYaTSP53Z"
+    },
+    {
+      "brick": "error-workflow",
+      "name": "EP10 \u00b7 Stack error handler",
+      "id": "lUfgK8pDB70D7BvA"
     }
   ],
   "data_tables": [
     {
-      "id": "YSqTOWTF8YTeVe44",
+      "id": "jTe4rLXlwZcfXSEb",
       "name": "ep07_caps"
     },
     {
-      "id": "yrU3DCbWAIjKUvag",
+      "id": "wx2irdIf8xHnF2cP",
       "name": "ep08_lanes"
     },
     {
-      "id": "D7GOC9QYN2xeczkz",
+      "id": "CmglW6xSbi3EQ9Bp",
       "name": "ep08_caps"
     },
     {
-      "id": "xrWmK4RUjYjzKU9z",
+      "id": "8MHvXYlW9GfJkqFw",
       "name": "ep09_caps"
+    },
+    {
+      "id": "Kfciv6kkxEbqzCVY",
+      "name": "stack_caps"
     }
   ],
   "credentials": [
     {
-      "id": "OZz0QFNkvnSJQyJu",
+      "id": "sPV52YXuKHJrNopL",
       "name": "Postgres (stack-demo)"
     },
     {
-      "id": "BiLUyMkhQYmSI6WG",
+      "id": "lu9fXHMwltnpZHxl",
+      "name": "Apify Token (stack-demo)"
+    },
+    {
+      "id": "aqe2rapKZWn3fMOK",
+      "name": "OpenRouter (stack-demo, header auth)"
+    },
+    {
+      "id": "rayXk4jntLa59Z9m",
+      "name": "OpenRouter (stack-demo, openAI-compatible)"
+    },
+    {
+      "id": "nAWsdjUHe1Sqykhl",
       "name": "n8n API (stack-demo, self)"
     }
   ]

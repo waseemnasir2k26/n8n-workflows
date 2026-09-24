@@ -34,6 +34,7 @@ DT_NAME_MAP = {
     "ep08_lanes": "dt_ep08_lanes",
     "ep08_caps": "dt_ep08_caps",
     "ep09_caps": "dt_ep09_caps",
+    "stack_caps": "dt_stack_caps",
 }
 
 
@@ -90,11 +91,32 @@ def rewrite_data_tables(node, args):
                     rl["cachedResultName"] = new_name or cached_name
 
 
+def import_workflow(base_url, api_key, wf, label):
+    """POST a workflow body, force it inactive, return its id."""
+    settings = wf.get("settings", {}) or {}
+    settings["executionTimeout"] = 300
+    body = {
+        "name": wf["name"],
+        "nodes": wf["nodes"],
+        "connections": wf["connections"],
+        "settings": settings,
+    }
+    created = req("POST", f"{base_url}/api/v1/workflows", api_key, body)
+    wf_id = created.get("id")
+    if not wf_id:
+        print(f"FAILED to import {label}: {json.dumps(created)[:300]}", file=sys.stderr)
+        sys.exit(1)
+    req("POST", f"{base_url}/api/v1/workflows/{wf_id}/deactivate", api_key)
+    print(f"  + {label} -> {wf['name']} ({wf_id}) active:false", file=sys.stderr)
+    return wf_id
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--base-url", required=True)
     ap.add_argument("--api-key", required=True)
     ap.add_argument("--repo-root", required=True)
+    ap.add_argument("--this-dir", required=True, help="10-lead-stack folder, for error-workflow.json")
     ap.add_argument("--installed-json", required=True)
     for flag in [
         "cred-postgres", "cred-postgres-name",
@@ -107,6 +129,7 @@ def main():
         "dt-ep08-lanes", "dt-ep08-lanes-name",
         "dt-ep08-caps", "dt-ep08-caps-name",
         "dt-ep09-caps", "dt-ep09-caps-name",
+        "dt-stack-caps", "dt-stack-caps-name",
     ]:
         ap.add_argument("--" + flag, default="")
     args = ap.parse_args()
@@ -119,6 +142,7 @@ def main():
     installed.setdefault("workflows", [])
     installed.setdefault("data_tables", [])
     installed.setdefault("credentials", [])
+    brick_ids = {}
     for b in BRICKS:
         wf_path = f"{args.repo_root}/{b}/workflow.json"
         with open(wf_path, encoding="utf-8") as f:
@@ -128,23 +152,41 @@ def main():
             rewrite_credentials(node, args)
             rewrite_data_tables(node, args)
 
+        wf_id = import_workflow(args.base_url, args.api_key, wf, b)
+        installed["workflows"].append({"brick": b, "name": wf["name"], "id": wf_id})
+        brick_ids[b] = (wf_id, wf)
+
+    # --- EP10 Stack error handler: import inactive, wire as settings.errorWorkflow
+    #     on all five just-imported bricks via PUT (4-key body), then GET-back
+    #     assert active:false is unchanged on every one (PUT can silently
+    #     re-activate a workflow -- see reference-n8n-api-patch-gotchas #12).
+    err_path = f"{args.this_dir}/error-workflow.json"
+    with open(err_path, encoding="utf-8") as f:
+        err_wf = json.load(f)
+    for node in err_wf.get("nodes", []):
+        rewrite_credentials(node, args)
+        rewrite_data_tables(node, args)
+    err_id = import_workflow(args.base_url, args.api_key, err_wf, "error-workflow")
+    installed["workflows"].append({"brick": "error-workflow", "name": err_wf["name"], "id": err_id})
+
+    for b, (wf_id, wf) in brick_ids.items():
         settings = wf.get("settings", {}) or {}
         settings["executionTimeout"] = 300
-        body = {
+        settings["errorWorkflow"] = err_id
+        put_body = {
             "name": wf["name"],
             "nodes": wf["nodes"],
             "connections": wf["connections"],
             "settings": settings,
         }
-        created = req("POST", f"{args.base_url}/api/v1/workflows", args.api_key, body)
-        wf_id = created.get("id")
-        if not wf_id:
-            print(f"FAILED to import {b}: {json.dumps(created)[:300]}", file=sys.stderr)
-            sys.exit(1)
-        # Force inactive regardless of server default.
+        req("PUT", f"{args.base_url}/api/v1/workflows/{wf_id}", args.api_key, put_body)
         req("POST", f"{args.base_url}/api/v1/workflows/{wf_id}/deactivate", args.api_key)
-        installed["workflows"].append({"brick": b, "name": wf["name"], "id": wf_id})
-        print(f"  + {b} -> {wf['name']} ({wf_id}) active:false", file=sys.stderr)
+        got = req("GET", f"{args.base_url}/api/v1/workflows/{wf_id}", args.api_key)
+        ok = got.get("active") is False
+        print(f"  ~ {b} errorWorkflow -> {err_id} active={got.get('active')} {'OK' if ok else 'FAIL'}", file=sys.stderr)
+        if not ok:
+            print(f"FAILED: {b} is active after wiring errorWorkflow", file=sys.stderr)
+            sys.exit(1)
 
     with open(args.installed_json, "w", encoding="utf-8") as f:
         json.dump(installed, f, indent=2)

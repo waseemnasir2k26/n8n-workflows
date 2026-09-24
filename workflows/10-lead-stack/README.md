@@ -21,14 +21,18 @@ timed install and a read-back proof that every workflow lands `active:false`.
 
 `install.sh` refuses on any workflow name collision (exit 2, zero changes),
 creates the shared `stack_*` schema plus each brick's own tables, creates the
-Data Tables three of the bricks need, imports all five with
-`executionTimeout:300` and forces `active:false`, GET-backs to prove it, and
-registers all five in `ep08_lanes` as `kind:manual-run`. `install.sh
---rollback` deletes exactly the ids it created.
+Data Tables the bricks need plus one shared `stack_caps` cap sheet, imports
+all five with `executionTimeout:300` and forces `active:false`, imports one
+shared `EP10 · Stack error handler` and wires it onto all five, GET-backs to
+prove `active:false` throughout, and registers all five in `ep08_lanes` as
+`kind:manual-run`. `manual-pass.sh` then runs each brick from its own manual
+trigger for a real execution id. `install.sh --rollback` deletes exactly the
+ids it created, including the shared Postgres tables.
 
 Full map, credential checklist, and the measured 2026-09-24 demo run
-(4 seconds, collision refusal proven, rollback proven, `acceptance.sh` PASS)
-are in [`STACK.md`](./STACK.md).
+(~5-6 second installs, collision refusal proven, rollback proven, real
+execution ids on all five bricks, `acceptance.sh` PASS) are in
+[`STACK.md`](./STACK.md).
 
 ## Quick start
 

@@ -150,6 +150,22 @@ for cr in installed.get("credentials", []):
 
 print("rollback done", file=sys.stderr)
 PY
+
+  log "Dropping stack_* Postgres tables (stack_events, stack_leads) ..."
+  if [ -n "$PSQL_DOCKER_CONTAINER" ]; then
+    docker exec -i "$PSQL_DOCKER_CONTAINER" psql -v ON_ERROR_STOP=0 -U "$PG_USER" -d "$PG_DATABASE" \
+      -c "DROP TABLE IF EXISTS stack_events; DROP TABLE IF EXISTS stack_leads;" \
+      && log "  stack_events, stack_leads dropped" \
+      || log "  ! could not drop stack_* tables (non-fatal -- rollback of n8n objects above already completed)"
+  elif [ -n "$PG_PASSWORD" ]; then
+    PGPASSWORD="$PG_PASSWORD" psql -v ON_ERROR_STOP=0 -h "$PG_HOST" -p "$PG_PORT" -U "$PG_USER" -d "$PG_DATABASE" \
+      -c "DROP TABLE IF EXISTS stack_events; DROP TABLE IF EXISTS stack_leads;" \
+      && log "  stack_events, stack_leads dropped" \
+      || log "  ! could not drop stack_* tables (non-fatal -- rollback of n8n objects above already completed)"
+  else
+    log "  - no PG connection info set (PSQL_DOCKER_CONTAINER or PG_PASSWORD); stack_* Postgres tables left in place"
+  fi
+
   rm -f "$INSTALLED_JSON"
   log "Rollback complete. installed.json removed."
 }
@@ -313,6 +329,11 @@ create_data_table "ep09_caps" \
   '[{"cap_id":"ep09","max_drafts_per_run":5,"max_drafts_per_day":20,"llm_calls_per_day":20,"llm_calls_today":0,"dry_run":false,"kill_enabled":true,"breaker_tripped":false,"consecutive_errors":0,"error_trip_threshold":3}]' \
   "DT_EP09_CAPS"
 
+create_data_table "stack_caps" \
+  '[{"name":"cap_id","type":"string"},{"name":"dry_run","type":"boolean"},{"name":"kill_enabled","type":"boolean"},{"name":"breaker_tripped","type":"boolean"},{"name":"consecutive_errors","type":"number"},{"name":"error_trip_threshold","type":"number"},{"name":"max_actions_per_run","type":"number"},{"name":"execution_timeout_note","type":"string"}]' \
+  '[{"cap_id":"stack","dry_run":true,"kill_enabled":true,"breaker_tripped":false,"consecutive_errors":0,"error_trip_threshold":3,"max_actions_per_run":10,"execution_timeout_note":"every imported workflow settings.executionTimeout=300s"}]' \
+  "DT_STACK_CAPS"
+
 check_wall_clock
 
 # ---------------------------------------------------------------------------
@@ -347,6 +368,7 @@ source "$SCRIPT_DIR/.cred_ids.env"
 python3 "$SCRIPT_DIR/_install_import.py" \
   --base-url "$N8N_BASE_URL" --api-key "$N8N_API_KEY" \
   --repo-root "$SCRIPT_DIR/.." \
+  --this-dir "$SCRIPT_DIR" \
   --installed-json "$INSTALLED_JSON" \
   --cred-postgres "${CRED_POSTGRES:-}" --cred-postgres-name "${CRED_POSTGRES_NAME:-}" \
   --cred-apify "${CRED_APIFY:-}" --cred-apify-name "${CRED_APIFY_NAME:-}" \
@@ -357,14 +379,15 @@ python3 "$SCRIPT_DIR/_install_import.py" \
   --dt-ep07-caps "${DT_EP07_CAPS:-}" --dt-ep07-caps-name "${DT_EP07_CAPS_NAME:-}" \
   --dt-ep08-lanes "${DT_EP08_LANES:-}" --dt-ep08-lanes-name "${DT_EP08_LANES_NAME:-}" \
   --dt-ep08-caps "${DT_EP08_CAPS:-}" --dt-ep08-caps-name "${DT_EP08_CAPS_NAME:-}" \
-  --dt-ep09-caps "${DT_EP09_CAPS:-}" --dt-ep09-caps-name "${DT_EP09_CAPS_NAME:-}"
+  --dt-ep09-caps "${DT_EP09_CAPS:-}" --dt-ep09-caps-name "${DT_EP09_CAPS_NAME:-}" \
+  --dt-stack-caps "${DT_STACK_CAPS:-}" --dt-stack-caps-name "${DT_STACK_CAPS_NAME:-}"
 
 check_wall_clock
 
 # ---------------------------------------------------------------------------
 # 6. GET-back active:false x5
 # ---------------------------------------------------------------------------
-log "Verifying active:false on all five imported workflows ..."
+log "Verifying active:false on all imported workflows (five bricks + error handler) ..."
 python3 - "$INSTALLED_JSON" "$N8N_BASE_URL" "$N8N_API_KEY" <<'PY'
 import json, sys, urllib.request
 path, base, key = sys.argv[1], sys.argv[2], sys.argv[3]
@@ -400,6 +423,8 @@ def fnv1a(s: str) -> str:
 path, base, key, dt_id = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4]
 installed = json.load(open(path))
 for wf in installed["workflows"]:
+    if wf.get("brick") == "error-workflow":
+        continue  # not a monitored lane -- the error handler itself
     lane_ref = 'lane_' + fnv1a(wf["name"])[:8]
     body = json.dumps({"data": [{
         "lane_ref": lane_ref, "kind": "manual-run",
