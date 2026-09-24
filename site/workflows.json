@@ -1,5 +1,5 @@
 {
-  "updated": "2026-09-23",
+  "updated": "2026-09-24",
   "workflows": [
     {
       "slug": "freight-quote-parser",
@@ -31,7 +31,7 @@
     },
     {
       "slug": "workflow-library-signup",
-      "title": "Workflow library signup — webhook → validate → Postgres upsert → welcome email",
+      "title": "Workflow library signup \u2014 webhook \u2192 validate \u2192 Postgres upsert \u2192 welcome email",
       "status": "live",
       "video_url": null,
       "json_url": "https://github.com/waseemnasir2k26/n8n-workflows/tree/main/workflows/00-workflow-library-signup"
@@ -47,7 +47,7 @@
       "slug": "meta-ads-breaker",
       "title": "Meta ads circuit breaker (pause-only write, Data Table caps) - deterministic caps trip a whitelist gate that can only ever pause",
       "status": "live",
-      "video_url": null,
+      "video_url": "https://youtu.be/jrVFBmUCsfo",
       "json_url": "https://github.com/waseemnasir2k26/n8n-workflows/tree/main/workflows/06-meta-ads-breaker"
     }
   ]
