@@ -1,0 +1,124 @@
+{
+  "note": "13 synthetic rows for EP07 Inbox Router. All addresses are synthetic (example.com / example.org) except the existing_client rows, which use skynetjoe.com/skynetlabsai.com/waseemnasir.com to match the reference known_client_domains list in data-table-spec.md. Shape matches what Mask + normalize expects from the disabled sample lane ({rows:[{from,subject,text,received_at}]}) so the demo lane and the live IMAP lane exercise identical downstream code.",
+  "rows": [
+    {
+      "row_id": "lead-01",
+      "expected_classification": "lead",
+      "expected_route": "rules",
+      "from": "Priya Shah <priya.shah@example.com>",
+      "subject": "Pricing for a contact form + inbox sorting build",
+      "text": "Hi, we run a small consulting business and need a contact form that routes into a shared inbox -- lead / technical question / spam / existing client, sorted automatically. Can you send pricing and a rough timeline?",
+      "received_at": "2026-09-10T09:12:00Z"
+    },
+    {
+      "row_id": "lead-02",
+      "expected_classification": "lead",
+      "expected_route": "rules",
+      "from": "Marcus Webb <marcus.webb@example.org>",
+      "subject": "Interested in hiring your agency",
+      "text": "We are looking for a developer to help automate our lead intake. Can you build something like this for us? Would love a quote.",
+      "received_at": "2026-09-11T14:03:00Z"
+    },
+    {
+      "row_id": "lead-03",
+      "expected_classification": "lead",
+      "expected_route": "rules",
+      "from": "Dana Ortiz <dana.ortiz@example.com>",
+      "subject": "New client -- project inquiry",
+      "text": "Hello, I found your n8n workflow repo and want to get started on a similar build for our team. What's the process to hire your agency?",
+      "received_at": "2026-09-12T08:44:00Z"
+    },
+    {
+      "row_id": "tech-01",
+      "expected_classification": "technical",
+      "expected_route": "rules",
+      "from": "Oliver Grant <oliver.grant@example.org>",
+      "subject": "Support ticket -- login broken",
+      "text": "Hi, I can't log in to the portal, it keeps throwing a 500 error. This started this morning. Can someone from support take a look?",
+      "received_at": "2026-09-13T11:20:00Z"
+    },
+    {
+      "row_id": "tech-02",
+      "expected_classification": "technical",
+      "expected_route": "rules",
+      "from": "Fatima Raza <fatima.raza@example.com>",
+      "subject": "Site down / outage",
+      "text": "Our checkout page has been down since last night, throwing an error on every attempt. Need a password reset for the admin panel too.",
+      "received_at": "2026-09-13T22:05:00Z"
+    },
+    {
+      "row_id": "tech-03",
+      "expected_classification": "technical",
+      "expected_route": "rules",
+      "from": "Ben Foster <ben.foster@example.org>",
+      "subject": "Bug in the export feature",
+      "text": "Found a bug -- exporting to CSV is broken and returns a 502 error every time. Not urgent but wanted to flag it for the next fix.",
+      "received_at": "2026-09-14T16:30:00Z"
+    },
+    {
+      "row_id": "spam-01",
+      "expected_classification": "spam",
+      "expected_route": "rules",
+      "from": "promo@example-deals.net",
+      "subject": "Claim your free crypto airdrop now",
+      "text": "You have been selected for a crypto airdrop! Click here to claim your reward instantly. Unsubscribe instantly if not interested.",
+      "received_at": "2026-09-15T03:00:00Z"
+    },
+    {
+      "row_id": "spam-02",
+      "expected_classification": "spam",
+      "expected_route": "rules",
+      "from": "offers@example-casino.net",
+      "subject": "Huge casino bonus waiting for you",
+      "text": "Get your casino bonus today, guaranteed SEO services also available. Click here to claim.",
+      "received_at": "2026-09-15T03:05:00Z"
+    },
+    {
+      "row_id": "spam-03",
+      "expected_classification": "spam",
+      "expected_route": "rules",
+      "from": "deals@example-forex.net",
+      "subject": "Forex signals -- 90% win rate guaranteed",
+      "text": "Join our forex signals group today. Weight loss pills also on sale this week. Unsubscribe instantly.",
+      "received_at": "2026-09-16T05:00:00Z"
+    },
+    {
+      "row_id": "existing-01",
+      "expected_classification": "existing_client",
+      "expected_route": "rules",
+      "from": "Waseem Nasir <ops@skynetjoe.com>",
+      "subject": "Follow up on last month's invoice",
+      "text": "Hey, just checking on the invoice we sent last month -- can you confirm it was received?",
+      "received_at": "2026-09-17T10:00:00Z"
+    },
+    {
+      "row_id": "existing-02",
+      "expected_classification": "existing_client",
+      "expected_route": "rules",
+      "from": "notifications@skynetlabsai.com",
+      "subject": "Weekly report ready",
+      "text": "The weekly automation report is attached below for your records.",
+      "received_at": "2026-09-18T07:15:00Z"
+    },
+    {
+      "row_id": "bounce-edge",
+      "expected_classification": "spam",
+      "expected_route": "rules",
+      "from": "mailer-daemon@example-mail.net",
+      "subject": "Undelivered Mail Returned to Sender",
+      "text": "This is a mail delivery failed notice. The following message could not be delivered to one or more recipients.",
+      "received_at": "2026-09-19T02:10:00Z",
+      "note": "EDGE CASE: automated bounce, matches BOUNCE_RE in Rules router -- routed same as spam, not left unclassified."
+    },
+    {
+      "row_id": "unknown-edge",
+      "expected_classification": "unknown",
+      "expected_route": "model",
+      "from": "Chris Lindqvist <chris.lindqvist@example.com>",
+      "subject": "Quick question",
+      "text": "Hey, saw your repo on GitHub -- curious how the rules router decides what goes to the model. No ask here, just curious about the approach.",
+      "received_at": "2026-09-20T13:40:00Z",
+      "note": "EDGE CASE: no domain match, no spam/bounce pattern, no technical/lead regex hit -- the deliberate residue that reaches the LLM node."
+    }
+  ]
+}

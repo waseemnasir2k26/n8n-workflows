@@ -1,0 +1,398 @@
+{
+  "name": "EP07 Inbox Router (rules-first, drafts only, no send)",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "mailbox": "INBOX",
+        "postProcessAction": "nothing",
+        "format": "simple",
+        "options": {}
+      },
+      "id": "ep07-imap-poll",
+      "name": "Every 15 minutes: IMAP poll (own mailbox)",
+      "type": "n8n-nodes-base.emailReadImap",
+      "typeVersion": 2.2,
+      "position": [-900, 200],
+      "disabled": true,
+      "credentials": {
+        "imap": {
+          "id": "REPLACE_ME",
+          "name": "IMAP (REPLACE_ME - our own mailbox only)"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "id": "ep07-manual-test",
+      "name": "Manual Test",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [-900, 420]
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "REPLACE_ME",
+          "cachedResultName": "ep07_caps"
+        },
+        "filters": {},
+        "returnAll": true
+      },
+      "id": "ep07-load-caps",
+      "name": "Load caps",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [-660, 340]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://raw.githubusercontent.com/waseemnasir2k26/n8n-workflows/main/workflows/07-inbox-router-drafts-only/samples/inbox-sample.json",
+        "options": {
+          "timeout": 30000,
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "ep07-load-sample-inbox",
+      "name": "Load sample inbox",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-660, 520],
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// Folds THREE guards into this one node so nothing downstream needs a separate\n// IF just to no-op on an unarmed or empty run (same fold pattern as EP06's\n// 'Build insights request'):\n//   1. armed-guard: kill_enabled && !breaker_tripped from ep07_caps -- disarmed or\n//      already-tripped returns ZERO items, and every node downstream is a no-op on\n//      zero input by construction.\n//   2. max_msgs_per_run: hard slice of the input batch.\n//   3. masking BEFORE anything is stored, logged or rendered: sender -> stable\n//      sender_NN via an in-run djb2 hash (pure JS, no crypto/URL builtins --\n//      this sandbox has neither, see memory reference-n8n-api-patch-gotchas #13),\n//      subject truncated to 60 chars with any embedded email address stripped,\n//      body kept ONLY on this item for this run (never written to Postgres).\n//\n// Handles two input shapes on the SAME node: the live Email Trigger (IMAP) 'simple'\n// format ({from, subject, textHtml, text, date, ...}) and the disabled sample lane's\n// file ({rows:[{from, subject, text, received_at, ...}]}), so both lanes exercise\n// identical downstream code.\n\nfunction djb2(str) {\n  var hash = 5381;\n  var s = String(str || '');\n  for (var i = 0; i < s.length; i++) {\n    hash = ((hash << 5) + hash) + s.charCodeAt(i);\n    hash = hash & 0xffffffff;\n  }\n  return Math.abs(hash);\n}\n\nfunction senderRef(fromRaw) {\n  var email = String(fromRaw || '').toLowerCase();\n  var m = email.match(/<([^>]+)>/);\n  if (m) email = m[1];\n  var h = djb2(email) % 100000;\n  var padded = ('00000' + h).slice(-5);\n  return 'sender_' + padded;\n}\n\nfunction senderDomain(fromRaw) {\n  var email = String(fromRaw || '').toLowerCase();\n  var m = email.match(/<([^>]+)>/);\n  if (m) email = m[1];\n  var at = email.split('@');\n  return at.length > 1 ? at[1].replace(/[>\\s]/g, '') : '';\n}\n\nfunction subjectRef(subjRaw) {\n  var s = String(subjRaw || '');\n  s = s.replace(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}/g, '[email]');\n  return s.length > 60 ? s.slice(0, 60) + '...' : s;\n}\n\nfunction idemKey(ref, receivedAt) {\n  var basis = ref + '|' + String(receivedAt || '');\n  return 'ep07:' + djb2(basis).toString(16);\n}\n\nvar cfg = {};\ntry {\n  cfg = $('Load caps').first().json || {};\n} catch (e) {\n  cfg = {};\n}\n\nif (cfg.kill_enabled !== true) return [];\nif (cfg.breaker_tripped === true) return [];\n\nvar maxPerRun = Number(cfg.max_msgs_per_run || 50);\n\nvar raw = [];\nfor (var idx = 0; idx < $input.all().length; idx++) {\n  var it = $input.all()[idx].json;\n  if (Array.isArray(it.rows)) {\n    for (var r = 0; r < it.rows.length; r++) raw.push(it.rows[r]);\n  } else if (it.from !== undefined || it.subject !== undefined) {\n    raw.push(it);\n  }\n}\n\nraw = raw.slice(0, maxPerRun);\n\nvar out = [];\nfor (var i = 0; i < raw.length; i++) {\n  var m = raw[i];\n  var fromField = m.from || m.From || '';\n  var subjField = m.subject || m.Subject || '';\n  var bodyField = m.text || m.textPlain || m.body || '';\n  var receivedAt = m.date || m.received_at || null;\n  var ref = senderRef(fromField);\n  var domain = senderDomain(fromField);\n  out.push({ json: {\n    sender_ref: ref,\n    sender_domain: domain,\n    subject_ref: subjectRef(subjField),\n    body: String(bodyField || ''),\n    received_at: receivedAt,\n    idempotency_key: idemKey(ref, receivedAt),\n    source: Array.isArray($input.all()[0] && $input.all()[0].json && $input.all()[0].json.rows) ? 'sample' : 'live'\n  } });\n}\n\nreturn out;\n"
+      },
+      "id": "ep07-mask-normalize",
+      "name": "Mask + normalize",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-420, 340]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "language": "javaScript",
+        "jsCode": "// Deterministic pre-router. Only the residue (route='model') reaches the LLM\n// node -- this is the whole point of the episode (card: 'the model reads 9 of\n// 40'). Order: known-client allowlist -> spam heuristics -> lead/technical regex\n// intents -> unknown falls to the model.\nvar cfg = {};\ntry {\n  cfg = $('Load caps').first().json || {};\n} catch (e) {\n  cfg = {};\n}\n\nvar knownDomains = [];\ntry {\n  knownDomains = JSON.parse(cfg.known_client_domains || '[]');\n} catch (e) {\n  knownDomains = [];\n}\n\nvar body = String($json.body || '').toLowerCase();\nvar subj = String($json.subject_ref || '').toLowerCase();\nvar domain = String($json.sender_domain || '').toLowerCase();\nvar text = subj + ' ' + body;\n\nvar SPAM_RE = /unsubscribe instantly|viagra|crypto airdrop|forex signals|seo services guarantee|casino bonus|weight loss pills|click here to claim/;\nvar BOUNCE_RE = /undelivered mail returned to sender|mail delivery failed|delivery status notification/;\nvar TECH_RE = /\\berror\\b|\\bbug\\b|not working|broken|down|outage|502|500 error|cannot login|can'?t log in|password reset|support ticket/;\nvar LEAD_RE = /pricing|quote|interested in|hire (you|your)|project inquiry|looking for a (developer|agency|team)|can you build|new client|get started|proposal/;\n\nvar classification = 'unknown';\nvar confidence = 0.4;\nvar route = 'model';\n\nif (knownDomains.indexOf(domain) !== -1 && domain !== '') {\n  classification = 'existing_client';\n  confidence = 0.95;\n  route = 'rules';\n} else if (SPAM_RE.test(text) || BOUNCE_RE.test(text)) {\n  classification = 'spam';\n  confidence = 0.9;\n  route = 'rules';\n} else if (TECH_RE.test(text)) {\n  classification = 'technical';\n  confidence = 0.8;\n  route = 'rules';\n} else if (LEAD_RE.test(text)) {\n  classification = 'lead';\n  confidence = 0.8;\n  route = 'rules';\n} else {\n  classification = 'unknown';\n  confidence = 0.4;\n  route = 'model';\n}\n\nreturn { json: Object.assign({}, $json, {\n  classification: classification,\n  confidence: confidence,\n  route: route\n}) };\n"
+      },
+      "id": "ep07-rules-router",
+      "name": "Rules router",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-180, 340]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.route }}",
+              "rightValue": "model",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "ep07-route-rules-or-model",
+      "name": "Route: rules or model",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [60, 340]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT count(*)::int AS llm_calls_today FROM ep07_inbox WHERE route = 'model' AND received_at::date = current_date;",
+        "options": {}
+      },
+      "id": "ep07-count-llm-calls-today",
+      "name": "Count LLM calls today",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [300, 220],
+      "credentials": {
+        "postgres": {
+          "id": "REPLACE_ME",
+          "name": "Postgres (REPLACE_ME)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// Reads ep07_caps.llm_calls_per_day and the REAL count already spent today\n// (Count LLM calls today, a Postgres query -- not a magic number) and THROWS\n// before any item reaches the LLM node once the cap is met. Placed BEFORE the\n// LLM node in the canvas per the mission spec, not inside it.\nvar cfg = {};\ntry {\n  cfg = $('Load caps').first().json || {};\n} catch (e) {\n  cfg = {};\n}\n\nvar cap = Number(cfg.llm_calls_per_day || 0);\nvar spentToday = 0;\ntry {\n  spentToday = Number($('Count LLM calls today').first().json.llm_calls_today || 0);\n} catch (e) {\n  spentToday = 0;\n}\n\nvar items = $input.all();\nvar wouldBe = spentToday + items.length;\n\nif (spentToday >= cap) {\n  throw new Error('Guard: cap -- llm_calls_today (' + spentToday + ') already >= llm_calls_per_day (' + cap + '). Refusing to call the model.');\n}\n\nif (wouldBe > cap) {\n  var allowed = Math.max(0, cap - spentToday);\n  return items.slice(0, allowed);\n}\n\nreturn items;\n"
+      },
+      "id": "ep07-guard-cap",
+      "name": "Guard: cap",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [520, 220]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://openrouter.ai/api/v1/chat/completions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: \"openai/gpt-oss-20b\", messages: [ { role: \"system\", content: \"You triage inbound mail for a small consulting agency. Classify the message as exactly one of: lead, technical, spam, existing_client. Then draft a short reply (never send it -- this is a draft only). Reply with ONLY compact JSON: {\\\"classification\\\":\\\"...\\\",\\\"confidence\\\":0-1,\\\"is_buyer\\\":true/false,\\\"drafted_reply\\\":\\\"...\\\"}. No markdown, no commentary.\" }, { role: \"user\", content: \"Subject: \" + $json.subject_ref + \"\\n\\nBody:\\n\" + $json.body } ], temperature: 0.2, max_tokens: 400 }) }}",
+        "options": {
+          "timeout": 20000,
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "ep07-llm-classify-draft",
+      "name": "LLM classify + draft",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [760, 220],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 20000,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_ME",
+          "name": "OpenRouter (REPLACE_ME)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "language": "javaScript",
+        "jsCode": "// Merges the two upstream shapes -- rules-router items (already carry\n// classification/confidence/route) and LLM items (carry OpenRouter's raw chat\n// completion in $json.choices[0].message.content, still needing the rules-router\n// fields from the ORIGINAL Mask+normalize item, read back via node reference\n// since the HTTP node's own output replaced $json entirely) -- into ONE shape,\n// then applies the confidence gate: <0.7 -> needs_review.\nvar j = $json;\nvar isLlmResponse = j.choices !== undefined || j.id !== undefined && j.object === 'chat.completion';\n\nvar classification, confidence, isBuyer, draftedReply, senderRef2, subjectRef2, receivedAt, idemKey, route, sourceOrig;\n\nif (isLlmResponse) {\n  var raw = '';\n  try {\n    raw = j.choices[0].message.content || '';\n  } catch (e) {\n    raw = '';\n  }\n  var parsed = {};\n  try {\n    var cleaned = raw.replace(/```json|```/g, '').trim();\n    parsed = JSON.parse(cleaned);\n  } catch (e) {\n    parsed = {};\n  }\n  classification = parsed.classification || 'unknown';\n  confidence = parsed.confidence !== undefined ? Number(parsed.confidence) : 0.5;\n  isBuyer = parsed.is_buyer === true || classification === 'lead';\n  draftedReply = String(parsed.drafted_reply || '').slice(0, 2000);\n  route = 'model';\n\n  var origIdx = $itemIndex;\n  var orig = {};\n  try {\n    orig = $('Guard: cap').all()[origIdx].json;\n  } catch (e) {\n    orig = {};\n  }\n  senderRef2 = orig.sender_ref || null;\n  subjectRef2 = orig.subject_ref || null;\n  receivedAt = orig.received_at || null;\n  idemKey = orig.idempotency_key || null;\n} else {\n  classification = j.classification || 'unknown';\n  confidence = Number(j.confidence !== undefined ? j.confidence : 0.4);\n  isBuyer = classification === 'lead';\n  draftedReply = '';\n  route = j.route || 'rules';\n  senderRef2 = j.sender_ref || null;\n  subjectRef2 = j.subject_ref || null;\n  receivedAt = j.received_at || null;\n  idemKey = j.idempotency_key || null;\n}\n\nvar needsReview = confidence < 0.7;\n\nreturn { json: {\n  classification: needsReview ? 'needs_review' : classification,\n  original_classification: classification,\n  is_buyer: isBuyer,\n  drafted_reply: draftedReply,\n  confidence: confidence,\n  route: route,\n  received_at: receivedAt,\n  sender_ref: senderRef2,\n  subject_ref: subjectRef2,\n  idempotency_key: idemKey,\n  needs_review: needsReview\n} };\n"
+      },
+      "id": "ep07-confidence-gate",
+      "name": "Confidence gate",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [300, 460]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO ep07_inbox (classification, is_buyer, drafted_reply, confidence, route, received_at, sender_ref, subject_ref, idempotency_key)\nVALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)\nON CONFLICT (idempotency_key) DO NOTHING\nRETURNING id, classification, is_buyer, drafted_reply, confidence, route, sender_ref, subject_ref, idempotency_key;",
+        "options": {
+          "queryReplacement": "={{ [ $json.classification, $json.is_buyer, $json.drafted_reply, $json.confidence, $json.route, $json.received_at, $json.sender_ref, $json.subject_ref, $json.idempotency_key ] }}"
+        }
+      },
+      "id": "ep07-write-inbox-row",
+      "name": "Write inbox row",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [540, 460],
+      "credentials": {
+        "postgres": {
+          "id": "REPLACE_ME",
+          "name": "Postgres (REPLACE_ME)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// ===================== WRITE WHITELIST GATE =====================\n// Same chokepoint pattern as EP06's WRITE WHITELIST GATE: reads any caller-supplied\n// 'kind' FIRST and throws on anything that is not the allowed value (mirrors EP06's\n// \"j.kind !== 'pause' -> throw\"), THEN builds the write body itself from constants --\n// callers never supply the body -- so the only object that can ever reach the\n// mailbox is {kind:'label', name:'EP07/<classification>'}. There is no code path\n// here that can emit a send, a reply, a delete, or a move. Throws, never skips.\nvar ALLOWED_KIND = 'label';\nvar ALLOWED_PREFIX = 'EP07/';\n\nvar out = [];\nfor (var i = 0; i < $input.all().length; i++) {\n  var j = $input.all()[i].json;\n\n  // Refute-first gate: a crafted/corrupted item carrying an explicit 'kind'\n  // field (the real pipeline never sets one upstream -- Write inbox row's\n  // output has no 'kind' key at all) is refused unless it already says 'label'.\n  if (Object.prototype.hasOwnProperty.call(j, 'kind') && j.kind !== ALLOWED_KIND) {\n    throw new Error('WRITE WHITELIST: refusing item of kind \"' + j.kind + '\". Only kind=label may reach the mailbox.');\n  }\n\n  // ON CONFLICT DO NOTHING can return zero columns for a duplicate row -- skip\n  // silently rather than crash on a legitimate idempotent no-op (a row with\n  // neither an id nor a classification and no smuggled kind is just empty).\n  if (j.id === undefined && j.classification === undefined && !Object.prototype.hasOwnProperty.call(j, 'kind')) {\n    continue;\n  }\n\n  var candidate = { kind: 'label', name: ALLOWED_PREFIX + String(j.classification || 'needs_review') };\n\n  if (candidate.kind !== ALLOWED_KIND) {\n    throw new Error('WRITE WHITELIST: refusing kind \"' + candidate.kind + '\". Only kind=label may reach the mailbox.');\n  }\n  if (candidate.name.indexOf(ALLOWED_PREFIX) !== 0) {\n    throw new Error('WRITE WHITELIST: refusing label name outside the ' + ALLOWED_PREFIX + ' namespace.');\n  }\n  var keys = Object.keys(candidate);\n  if (keys.length !== 2 || keys.indexOf('kind') === -1 || keys.indexOf('name') === -1) {\n    throw new Error('WRITE WHITELIST: constructed body failed its own assertion: ' + JSON.stringify(candidate));\n  }\n\n  out.push({ json: Object.assign({}, j, { write: candidate }) });\n}\n\nreturn out;\n"
+      },
+      "id": "ep07-write-whitelist-gate",
+      "name": "WRITE WHITELIST GATE",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [780, 460]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $('Load caps').first().json.dry_run }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "ep07-dry-run",
+      "name": "Dry run?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [1000, 460]
+    },
+    {
+      "parameters": {
+        "resource": "label",
+        "operation": "add",
+        "labelIds": [],
+        "messageId": "={{ $json.sender_ref }}"
+      },
+      "id": "ep07-apply-label",
+      "name": "Apply label",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [1240, 560],
+      "disabled": true,
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "REPLACE_ME",
+          "name": "Gmail (REPLACE_ME - swap point only, mailbox is IMAP not Gmail)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// One summary item, read straight off the execution panel. Runs regardless of\n// which branch (dry-run or would-apply) each item took.\nfunction all(name) {\n  try {\n    return $(name).all().map(function (i) { return i.json; });\n  } catch (e) {\n    return [];\n  }\n}\n\nvar masked = all('Mask + normalize');\nvar routed = all('Rules router');\nvar gated = all('WRITE WHITELIST GATE');\nvar written = all('Write inbox row');\n\nvar rulesHandled = 0, modelHandled = 0, leads = 0, needsReview = 0, spamCount = 0, techCount = 0, existingCount = 0;\nfor (var i = 0; i < written.length; i++) {\n  var w = written[i];\n  if (w.route === 'rules') rulesHandled++;\n  if (w.route === 'model') modelHandled++;\n  if (w.original_classification === 'lead' || w.classification === 'lead') leads++;\n  if (w.classification === 'needs_review') needsReview++;\n  if (w.original_classification === 'spam') spamCount++;\n  if (w.original_classification === 'technical') techCount++;\n  if (w.original_classification === 'existing_client') existingCount++;\n}\n\nvar cfg = {};\ntry {\n  cfg = $('Load caps').first().json || {};\n} catch (e) {\n  cfg = {};\n}\n\nreturn [{ json: {\n  msgs_in: masked.length,\n  rules_handled: rulesHandled,\n  model_handled: modelHandled,\n  leads: leads,\n  needs_review: needsReview,\n  spam: spamCount,\n  technical: techCount,\n  existing_client: existingCount,\n  sent: 0,\n  labels_gated: gated.length,\n  rows_written: written.length,\n  dry_run: cfg.dry_run === true\n} }];\n"
+      },
+      "id": "ep07-run-summary",
+      "name": "Run summary",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1480, 460]
+    },
+    {
+      "parameters": {
+        "content": "## EP07 -- Inbox Router (drafts only)\n\nPolls OUR OWN mailbox (IMAP, disabled here -- manual test only), routes deterministically (known-client allowlist, spam heuristics, regex intents) FIRST, and only sends the residue to one LLM node. Classifies lead | technical | spam | existing_client, drafts a reply, writes ONE Postgres row. There is no send node on this canvas -- see the other sticky.\n\nGATE: ship only if rules handle >= 60% of mail (measured on the 12 samples + our own mailbox, see README).",
+        "height": 260,
+        "width": 460
+      },
+      "id": "ep07-note-what-this-does",
+      "name": "Note: what this does",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [-900, -80]
+    },
+    {
+      "parameters": {
+        "content": "## There is no send node -- why\n\nAutosend was RULED NO (memory hq-followup-autosend-engine, 2026-09-21). WRITE WHITELIST GATE builds {kind:'label', name:'EP07/<classification>'} FROM CONSTANTS -- callers never supply a body -- so a mailbox LABEL is the only write this workflow can physically make. dry_run defaults true: no label is ever applied, the run summary just counts what WOULD be labelled.",
+        "height": 260,
+        "width": 460
+      },
+      "id": "ep07-note-no-send",
+      "name": "Note: no send node",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [780, -80]
+    }
+  ],
+  "connections": {
+    "Every 15 minutes: IMAP poll (own mailbox)": {
+      "main": [
+        [
+          { "node": "Load caps", "type": "main", "index": 0 },
+          { "node": "Mask + normalize", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Manual Test": {
+      "main": [
+        [
+          { "node": "Load caps", "type": "main", "index": 0 },
+          { "node": "Load sample inbox", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Load sample inbox": {
+      "main": [[{ "node": "Mask + normalize", "type": "main", "index": 0 }]]
+    },
+    "Mask + normalize": {
+      "main": [[{ "node": "Rules router", "type": "main", "index": 0 }]]
+    },
+    "Rules router": {
+      "main": [
+        [{ "node": "Route: rules or model", "type": "main", "index": 0 }]
+      ]
+    },
+    "Route: rules or model": {
+      "main": [
+        [{ "node": "Count LLM calls today", "type": "main", "index": 0 }],
+        [{ "node": "Confidence gate", "type": "main", "index": 0 }]
+      ]
+    },
+    "Count LLM calls today": {
+      "main": [[{ "node": "Guard: cap", "type": "main", "index": 0 }]]
+    },
+    "Guard: cap": {
+      "main": [[{ "node": "LLM classify + draft", "type": "main", "index": 0 }]]
+    },
+    "LLM classify + draft": {
+      "main": [[{ "node": "Confidence gate", "type": "main", "index": 0 }]]
+    },
+    "Confidence gate": {
+      "main": [[{ "node": "Write inbox row", "type": "main", "index": 0 }]]
+    },
+    "Write inbox row": {
+      "main": [[{ "node": "WRITE WHITELIST GATE", "type": "main", "index": 0 }]]
+    },
+    "WRITE WHITELIST GATE": {
+      "main": [[{ "node": "Dry run?", "type": "main", "index": 0 }]]
+    },
+    "Dry run?": {
+      "main": [
+        [{ "node": "Run summary", "type": "main", "index": 0 }],
+        [{ "node": "Apply label", "type": "main", "index": 0 }]
+      ]
+    },
+    "Apply label": {
+      "main": [[{ "node": "Run summary", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "executionTimeout": 300
+  }
+}

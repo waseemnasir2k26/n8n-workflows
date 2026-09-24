@@ -1,0 +1,22 @@
+EP07 Inbox Router (drafts only) -- VPS ids (n8n.skynetjoe.com, 2026-09-24)
+
+Main workflow:  EP07 Inbox Router (rules-first, drafts only, no send)
+  id: WGDGQS5cFSFsv2iI
+  active: false (GET-verified 2026-09-24)
+  settings.errorWorkflow: EyUCZVeUnNGkT3rR
+
+Error workflow: EP07 Error Workflow (logs to ep07_errors, bumps consecutive_errors)
+  id: EyUCZVeUnNGkT3rR
+  active: false (GET-verified 2026-09-24)
+
+Data Table: ep07_caps
+  id: um8c1c5Scd4EIVAc
+  1 row inserted, GET-verified 2026-09-24
+
+Postgres tables created (n8n-postgres-1, database n8n): ep07_inbox, ep07_run_summary, ep07_errors
+
+Credentials referenced (id + type only, no values):
+  imap            TrCiZRZP3NVMzrkQ   skynetlabsai.com IMAP (our own mailbox)
+  httpHeaderAuth  Sip1CpYwdZKQDA5l   openrouter-jev (OpenRouter chat completions)
+  postgres        92qip0eS5E8Lx3TH   LG Postgres (n8n-postgres-1, same VPS)
+  gmailOAuth2     REPLACE_ME         swap-point only, node ships disabled (mailbox is IMAP, not Gmail)

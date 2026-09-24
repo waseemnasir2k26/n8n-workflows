@@ -1,0 +1,94 @@
+{
+  "name": "EP07 Error Workflow (logs to ep07_errors, bumps consecutive_errors)",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "ep07-error-trigger",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO ep07_errors (workflow_name, node_name, error_message, execution_id, occurred_at) VALUES ($1,$2,$3,$4,$5) RETURNING id;",
+        "options": {
+          "queryReplacement": "={{ [ $json.workflow.name, ($json.execution && $json.execution.lastNodeExecuted) || null, ($json.execution && $json.execution.error && $json.execution.error.message) || 'unknown error', ($json.execution && $json.execution.id) || null, $now.toISO() ] }}"
+        }
+      },
+      "id": "ep07-error-log",
+      "name": "Log error",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [240, 0],
+      "credentials": {
+        "postgres": {
+          "id": "REPLACE_ME",
+          "name": "Postgres (REPLACE_ME)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "REPLACE_ME",
+          "cachedResultName": "ep07_caps"
+        },
+        "filters": {},
+        "returnAll": true
+      },
+      "id": "ep07-error-read-caps",
+      "name": "Read caps",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [480, 0]
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "update",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "REPLACE_ME",
+          "cachedResultName": "ep07_caps"
+        },
+        "matchType": "allConditions",
+        "filters": { "conditions": [] },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "consecutive_errors": "={{ Number($json.consecutive_errors || 0) + 1 }}",
+            "breaker_tripped": "={{ (Number($json.consecutive_errors || 0) + 1) >= Number($json.error_trip_threshold || 3) }}"
+          },
+          "matchingColumns": [],
+          "schema": []
+        }
+      },
+      "id": "ep07-error-bump-counter",
+      "name": "Bump error counter",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [720, 0]
+    }
+  ],
+  "connections": {
+    "Error Trigger": {
+      "main": [[{ "node": "Log error", "type": "main", "index": 0 }]]
+    },
+    "Log error": {
+      "main": [[{ "node": "Read caps", "type": "main", "index": 0 }]]
+    },
+    "Read caps": {
+      "main": [[{ "node": "Bump error counter", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
