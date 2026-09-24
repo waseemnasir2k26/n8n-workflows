@@ -1,4 +1,4 @@
-EP08 -- Silent-lane watchdog -- deployed ids (n8n.skynetjoe.com, VPS 169.58.154.106)
+EP08 -- Silent-lane watchdog -- deployed ids (n8n.skynetjoe.com, VPS YOUR-VPS-HOST)
 Deployed 2026-09-24. Both workflows: active=false (verified via GET-back after every PUT).
 
 Workflow  EP08 Silent-lane watchdog (built after 6-day dead lane, 0 errors)

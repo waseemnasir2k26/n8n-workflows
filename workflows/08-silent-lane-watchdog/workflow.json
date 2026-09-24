@@ -36,7 +36,7 @@
   {
    "parameters": {
     "method": "GET",
-    "url": "=https://{{ $env.N8N_HOST }}/api/v1/workflows?active=true",
+    "url": "={{ $('Load caps').first().json.n8n_base_url || 'http://localhost:5678' }}/api/v1/workflows?active=true",
     "authentication": "predefinedCredentialType",
     "nodeCredentialType": "httpHeaderAuth",
     "sendHeaders": false,
@@ -134,8 +134,8 @@
    "type": "n8n-nodes-base.dataTable",
    "typeVersion": 1.1,
    "position": [
-    -200,
-    270
+    -1160,
+    90
    ]
   },
   {
@@ -396,7 +396,7 @@
    "main": [
     [
      {
-      "node": "List workflows",
+      "node": "Load caps",
       "type": "main",
       "index": 0
      }
@@ -407,7 +407,7 @@
    "main": [
     [
      {
-      "node": "List workflows",
+      "node": "Load caps",
       "type": "main",
       "index": 0
      }
@@ -451,7 +451,7 @@
    "main": [
     [
      {
-      "node": "Load caps",
+      "node": "Evaluate obligation",
       "type": "main",
       "index": 0
      }
@@ -462,7 +462,7 @@
    "main": [
     [
      {
-      "node": "Evaluate obligation",
+      "node": "List workflows",
       "type": "main",
       "index": 0
      }

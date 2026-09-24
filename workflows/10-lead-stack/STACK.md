@@ -103,7 +103,7 @@ allowed; only activation is banned, and nothing here ever calls `/activate`.
 | 02-speed-to-lead            | `Web Lead In` (webhook)          | No manual-trigger sibling — armed via the internal run API (`waitingForWebhook:true`), then fired for real with an actual HTTP POST to the test-webhook URL carrying the seeded lead's fields                                                     |
 | 09-lead-draft-personaliser  | `Manual Test` (built-in sibling) | Fans out to the GitHub sample leads AND `ep09_leads` (Postgres) — the seed row is inserted into `ep09_leads` first, so it is genuinely in the batch this run drafts against, real OpenRouter call                                                 |
 | 07-inbox-router-drafts-only | `Manual Test` (built-in sibling) | The brick's OWN wiring routes `Manual Test` to `Load sample inbox`, never live IMAP — this is the brick's real, honest manual path, not a limitation added here; DRY RUN / mail-read-skipped is what "Manual Test" has always meant on this brick |
-| 08-silent-lane-watchdog     | `Manual Test` (built-in sibling) | Calls the demo instance's own API via the real `n8n API (stack-demo, self)` credential                                                                                                                                                            |
+| 08-silent-lane-watchdog     | `Manual Test` (built-in sibling) | Calls the demo instance's own API via the real `n8n API (stack-demo, self)` credential, target base URL read from `ep08_caps.n8n_base_url` (fixed 2026-09-24, execution 24 success — see "Build notes" #5)                                        |
 
 ## Environment variables `install.sh` reads
 
@@ -156,11 +156,11 @@ time, never a production session).
   Anthropic credential supplied to this demo, so it errors after writing a
   real row — see per-brick table above), 09 → success (real OpenRouter
   call), 07 → success (sample-inbox path, no live IMAP — the brick's own
-  manual-trigger design), 08 → error (its `List workflows` node hardcodes
-  `https://` and this demo container serves plain HTTP only — an
-  environment TLS mismatch, not a stub; still a real execution with a real
-  id). All five have **real execution ids** confirmed via
-  `GET /api/v1/executions?workflowId=`.
+  manual-trigger design), 08 → **error at execution 23** (its `List
+workflows` node hardcoded `https://` and this demo container serves plain
+  HTTP only — an environment TLS mismatch, not a stub), **fixed and re-run
+  at execution 24 → success** (see "08 base-URL fix" below). All five have
+  **real execution ids** confirmed via `GET /api/v1/executions?workflowId=`.
 - The shared error handler's own logic verified separately (see "Shared
   error handling" above): real execution, `stack_events` row written,
   `stack_caps.consecutive_errors` 0 -> 1.
@@ -194,11 +194,21 @@ time, never a production session).
    wrote before failing (`demo_sessions`) is real — matching this build's
    "real manual executions, not SQL seeding" bar even though the outcome is
    a failure.
-5. **08's real run ends in `error`** for an environment reason: its
-   self-referential `List workflows` node hardcodes `https://`, and this
-   throwaway instance is deliberately plain HTTP (never exposed publicly, no
-   TLS termination in front of it). Not patched — this repo never edits a
-   brick's own node logic; documented instead.
+5. **08's real run originally ended in `error`** (execution 23) for an
+   environment reason: its self-referential `List workflows` node hardcoded
+   `https://`, and this throwaway instance is deliberately plain HTTP (never
+   exposed publicly, no TLS termination in front of it). **Fixed 2026-09-24
+   in the brick itself** (this is a genuine upstream fix to
+   `08-silent-lane-watchdog/workflow.json`, not a stack-only workaround):
+   `List workflows` now reads its target scheme+host from a new
+   `ep08_caps.n8n_base_url` column via `Load caps`, moved ahead of `List
+workflows` in the node order, falling back to `http://localhost:5678` in
+   the expression itself if the column is empty. This demo's `ep08_caps` row
+   was set to `http://127.0.0.1:5678` (the container's own address) and the
+   brick was re-run from `Manual Test` via the internal run API — execution
+   **24, status success**, `List workflows` returned a real 200 workflow
+   list, 0 node errors. See `08-silent-lane-watchdog/README.md` GOTCHAS and
+   `data-table-spec.md`.
 6. **Rollback deletes n8n objects via the public API AND drops the
    `stack_leads` / `stack_events` Postgres tables** it created — it does not
    touch each brick's OWN tables (`demo_sessions`, `ep03_leads`,

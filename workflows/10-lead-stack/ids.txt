@@ -44,8 +44,15 @@ per brick, confirmed by acceptance.sh):
   [3] 09-lead-draft-personaliser        execution 21  status: success  (real OpenRouter call, real ep09_drafts row)
   [4] 07-inbox-router-drafts-only       execution 22  status: success  (Manual Test -> Load sample inbox, the brick's own manual-trigger
                                                                          design -- DRY RUN, mail read skipped, never live IMAP)
-  [5] 08-silent-lane-watchdog           execution 23  status: error    (List workflows node hardcodes https://; this throwaway instance is
+  [5] 08-silent-lane-watchdog           execution 23  status: error    (List workflows node hardcoded https://; this throwaway instance is
                                                                          plain HTTP only by design -- environment TLS mismatch, not a stub)
+                                         execution 24  status: success  (FIXED 2026-09-24: List workflows now reads its base URL from the
+                                                                         ep08_caps Data Table's new n8n_base_url column via Load caps,
+                                                                         moved ahead of List workflows -- demo row set to
+                                                                         http://127.0.0.1:5678, the container's own address. Re-run via
+                                                                         Manual Test through the internal run API: status success,
+                                                                         finished true, 0 node errors, List workflows returned a real
+                                                                         200 workflow list -- see 08's README GOTCHAS)
 
   Error handler proof run (separate, direct): execution id present, status
   success, wrote one stack_events row, bumped stack_caps.consecutive_errors

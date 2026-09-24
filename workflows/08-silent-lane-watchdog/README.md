@@ -223,6 +223,14 @@ error_trip_threshold`, in addition to the stored boolean -- this is what
 
 ## GOTCHAS
 
+- **The watchdog calls its own instance; set `n8n_base_url`.** `List workflows`
+  reads its target scheme+host from `ep08_caps.n8n_base_url` (via `Load caps`,
+  now the first node after the triggers) instead of a hardcoded scheme --
+  every deployed copy of this workflow points at a DIFFERENT n8n instance, so
+  every deployed copy needs its OWN `n8n_base_url` row value (its own
+  scheme+host, no trailing slash). Falls back to `http://localhost:5678` in
+  the expression itself if the column is empty or missing. See
+  `data-table-spec.md`.
 - **0 errors is not health.** `ep08_lane_checks` is the evidence table --
   read it to see what was actually checked (including every lane correctly
   judged healthy/off/unmeasurable), not just `ep08_incidents`, which only
