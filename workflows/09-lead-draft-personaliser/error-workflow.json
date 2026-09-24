@@ -1,0 +1,152 @@
+{
+  "name": "EP09 Error handler",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "ep09-error-trigger",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO ep09_errors (workflow_name, node_name, error_message, execution_id, occurred_at) VALUES ($1,$2,$3,$4,$5) RETURNING id;",
+        "options": {
+          "queryReplacement": "={{ [ $json.workflow.name, ($json.execution && $json.execution.lastNodeExecuted) || null, ($json.execution && $json.execution.error && $json.execution.error.message) || 'unknown error', ($json.execution && $json.execution.id) || null, $now.toISO() ] }}"
+        }
+      },
+      "id": "ep09-log-error",
+      "name": "Log error",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [240, 0],
+      "credentials": {
+        "postgres": { "id": "REPLACE_ME", "name": "Postgres (REPLACE_ME)" }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "REPLACE_ME",
+          "cachedResultName": "ep09_caps"
+        },
+        "filters": {},
+        "returnAll": true
+      },
+      "id": "ep09-error-read-caps",
+      "name": "Read caps",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [480, 0]
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "update",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "REPLACE_ME",
+          "cachedResultName": "ep09_caps"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            { "keyName": "cap_id", "condition": "eq", "keyValue": "ep09" }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "consecutive_errors": "={{ Number($json.consecutive_errors || 0) + 1 }}"
+          },
+          "matchingColumns": [],
+          "schema": []
+        }
+      },
+      "id": "ep09-bump-error-counter",
+      "name": "Bump error counter",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [720, 0]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ Number($json.consecutive_errors || 0) }}",
+              "rightValue": "={{ Number($('Read caps').first().json.error_trip_threshold || 3) }}",
+              "operator": { "type": "number", "operation": "gte" }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "ep09-trip-check",
+      "name": "Trip check",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [960, 0]
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "update",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "REPLACE_ME",
+          "cachedResultName": "ep09_caps"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            { "keyName": "cap_id", "condition": "eq", "keyValue": "ep09" }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": { "breaker_tripped": true },
+          "matchingColumns": [],
+          "schema": []
+        }
+      },
+      "id": "ep09-trip-breaker",
+      "name": "Trip breaker",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [1200, -80]
+    }
+  ],
+  "connections": {
+    "Error Trigger": {
+      "main": [[{ "node": "Log error", "type": "main", "index": 0 }]]
+    },
+    "Log error": {
+      "main": [[{ "node": "Read caps", "type": "main", "index": 0 }]]
+    },
+    "Read caps": {
+      "main": [[{ "node": "Bump error counter", "type": "main", "index": 0 }]]
+    },
+    "Bump error counter": {
+      "main": [[{ "node": "Trip check", "type": "main", "index": 0 }]]
+    },
+    "Trip check": {
+      "main": [[{ "node": "Trip breaker", "type": "main", "index": 0 }], []]
+    }
+  },
+  "settings": { "executionOrder": "v1" }
+}

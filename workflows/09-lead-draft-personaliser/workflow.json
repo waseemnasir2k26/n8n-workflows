@@ -1,0 +1,568 @@
+{
+ "name": "EP09 Lead-draft personaliser (never sends)",
+ "nodes": [
+  {
+   "parameters": {},
+   "id": "ep09-manual-test",
+   "name": "Manual Test",
+   "type": "n8n-nodes-base.manualTrigger",
+   "typeVersion": 1,
+   "position": [
+    -1200,
+    380
+   ]
+  },
+  {
+   "parameters": {
+    "httpMethod": "POST",
+    "path": "ep09-leads-in",
+    "responseMode": "onReceived",
+    "options": {}
+   },
+   "id": "ep09-webhook-leads-in",
+   "name": "Webhook: leads in",
+   "type": "n8n-nodes-base.webhook",
+   "typeVersion": 2.1,
+   "position": [
+    -1200,
+    560
+   ],
+   "disabled": true,
+   "webhookId": "ep09-leads-in-swap-point"
+  },
+  {
+   "parameters": {
+    "method": "GET",
+    "url": "https://raw.githubusercontent.com/waseemnasir2k26/n8n-workflows/main/workflows/09-lead-draft-personaliser/samples/leads-sample.json",
+    "options": {
+     "timeout": 30000,
+     "response": {
+      "response": {
+       "responseFormat": "json"
+      }
+     }
+    }
+   },
+   "id": "ep09-load-leads-github",
+   "name": "Load leads (GitHub sample)",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    -960,
+    300
+   ],
+   "disabled": true
+  },
+  {
+   "parameters": {
+    "operation": "executeQuery",
+    "query": "SELECT lead_id, host, business_name, niche, city, signal, source FROM ep09_leads ORDER BY id;",
+    "options": {}
+   },
+   "id": "ep09-load-leads-postgres",
+   "name": "Load leads (Postgres ep09_leads)",
+   "type": "n8n-nodes-base.postgres",
+   "typeVersion": 2.7,
+   "position": [
+    -960,
+    480
+   ],
+   "credentials": {
+    "postgres": {
+     "id": "REPLACE_ME",
+     "name": "Postgres (REPLACE_ME)"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "mode": "runOnceForAllItems",
+    "language": "javaScript",
+    "jsCode": "// Masks the host BEFORE anything is stored or rendered. Real host is kept\n// in-memory only on this item (raw_host) for the dedupe + schema-gate steps\n// downstream in THIS SAME execution; only host_ref (a stable hash) and the\n// already-public business_name/niche/city signals ever reach Postgres.\n// Handles both input shapes: the GitHub sample file ({leads:[...]}) and a\n// Postgres read of ep09_leads (rows already flat).\nfunction djb2(str) {\n  var s = String(str || '');\n  var hash = 5381;\n  for (var i = 0; i < s.length; i++) {\n    hash = ((hash * 33) ^ s.charCodeAt(i)) >>> 0;\n  }\n  return hash.toString(16);\n}\n\nfunction hostFrom(raw) {\n  var s = String(raw || '').trim().toLowerCase();\n  s = s.replace(/^[a-z][a-z0-9+.-]*:\\/\\//, '');\n  s = s.split('/')[0].split('?')[0].split('#')[0];\n  s = s.split('@').pop().split(':')[0];\n  s = s.replace(/^www\\./, '');\n  return s;\n}\n\nvar rows = [];\nfor (var i = 0; i < $input.all().length; i++) {\n  var j = $input.all()[i].json;\n  if (Array.isArray(j.leads)) {\n    rows = rows.concat(j.leads);\n  } else if (Array.isArray(j.rows)) {\n    rows = rows.concat(j.rows);\n  } else if (j.host || j.website) {\n    rows.push(j);\n  }\n}\n\nvar out = [];\nfor (var k = 0; k < rows.length; k++) {\n  var r = rows[k];\n  var rawHost = hostFrom(r.host || r.website || '');\n  if (!rawHost) continue;\n  out.push({ json: {\n    lead_id: r.lead_id || null,\n    host_ref: 'h_' + djb2(rawHost),\n    raw_host: rawHost,\n    business_name: r.business_name || null,\n    niche: r.niche || null,\n    city: r.city || null,\n    signal: r.signal || null,\n    source: r.source || null\n  } });\n}\n\nif (out.length === 0) {\n  throw new Error('Mask + normalize: zero lead rows after normalize -- refusing to run the draft lane on no data.');\n}\n\nreturn out;\n"
+   },
+   "id": "ep09-mask-normalize",
+   "name": "Mask + normalize",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    -720,
+    300
+   ]
+  },
+  {
+   "parameters": {
+    "mode": "runOnceForAllItems",
+    "language": "javaScript",
+    "jsCode": "// Dedupe by HOST, not place/row (memory feedback-outreach-dedupe-by-host-not-place):\n// a chain sold on 4 branches is one inbox. Keeps the FIRST occurrence per raw_host\n// within this batch; every later row with the same host is dropped and counted.\nvar seen = {};\nvar out = [];\nvar droppedHosts = [];\n\nfor (var i = 0; i < $input.all().length; i++) {\n  var item = $input.all()[i];\n  var host = String(item.json.raw_host || '').toLowerCase();\n  if (!host) continue;\n  if (seen[host]) {\n    droppedHosts.push(host);\n    continue;\n  }\n  seen[host] = true;\n  out.push(item);\n}\n\n// stash the drop count on every surviving item so Run summary can report it\n// without a second lookup pass.\nfor (var k = 0; k < out.length; k++) {\n  out[k].json._dedupe_in = $input.all().length;\n  out[k].json._dedupe_dropped = droppedHosts.length;\n}\n\nreturn out;\n"
+   },
+   "id": "ep09-dedupe-by-host",
+   "name": "Dedupe by host",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    -480,
+    300
+   ]
+  },
+  {
+   "parameters": {
+    "resource": "row",
+    "operation": "get",
+    "dataTableId": {
+     "__rl": true,
+     "mode": "id",
+     "value": "REPLACE_ME",
+     "cachedResultName": "ep09_caps"
+    },
+    "filters": {},
+    "returnAll": true
+   },
+   "id": "ep09-load-caps",
+   "name": "Load caps",
+   "type": "n8n-nodes-base.dataTable",
+   "typeVersion": 1.1,
+   "position": [
+    -1200,
+    200
+   ]
+  },
+  {
+   "parameters": {
+    "mode": "runOnceForAllItems",
+    "language": "javaScript",
+    "jsCode": "// Enforces the daily/run caps from ep09_caps BEFORE any LLM call. Throws (hard\n// stop, same shape as EP06's write whitelist) rather than silently truncating --\n// a silent truncation would be a honeypot fake-OK (memory\n// feedback-honeypot-silent-accept-is-a-fake-success).\nvar caps = {};\ntry {\n  caps = $('Load caps').first().json || {};\n} catch (e) {\n  caps = {};\n}\n\nif (caps.kill_enabled === false) {\n  throw new Error('Guard: cap -- kill_enabled is false. Refusing to draft (human-disarmed).');\n}\nif (caps.breaker_tripped === true) {\n  throw new Error('Guard: cap -- breaker_tripped is true. Refusing to draft until reset.');\n}\n\nvar maxPerRun = Number(caps.max_drafts_per_run || 5);\nvar maxPerDay = Number(caps.max_drafts_per_day || 50);\nvar llmPerDay = Number(caps.llm_calls_per_day || 50);\nvar callsToday = Number(caps.llm_calls_today || 0);\n\nvar items = $input.all();\nif (items.length > maxPerRun) {\n  items = items.slice(0, maxPerRun);\n}\n\nvar remaining = llmPerDay - callsToday;\nif (remaining <= 0) {\n  throw new Error('Guard: cap -- llm_calls_today (' + callsToday + ') has reached llm_calls_per_day (' + llmPerDay + '). Refusing to call the model.');\n}\nif (items.length > remaining) {\n  items = items.slice(0, remaining);\n}\n\nif (items.length === 0) {\n  throw new Error('Guard: cap -- zero leads survive the cap gate (max_drafts_per_run=' + maxPerRun + ', llm budget remaining=' + remaining + ').');\n}\n\nreturn items;\n"
+   },
+   "id": "ep09-guard-cap",
+   "name": "Guard: cap",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    -240,
+    300
+   ]
+  },
+  {
+   "parameters": {
+    "mode": "runOnceForAllItems",
+    "language": "javaScript",
+    "jsCode": "// Builds the per-lead prompt text for the Draft chain. Kept as its own node so\n// the chainLlm prompt expression stays a single field reference, not an inline\n// template -- easier to unit-test the string in isolation.\nvar out = [];\nfor (var i = 0; i < $input.all().length; i++) {\n  var j = $input.all()[i].json;\n  var signal = j.signal || 'no specific signal captured for this lead';\n  var niche = j.niche || 'unspecified industry';\n  var city = j.city || 'unspecified location';\n  var name = j.business_name || 'the business';\n\n  var prompt = 'Write ONE short outreach draft message for a cold lead. ' +\n    'Business: ' + name + '. Industry: ' + niche + '. Location: ' + city + '. ' +\n    'The one real signal we have about them: ' + signal + '. ' +\n    'Rules: reference the signal above (or say plainly that no signal was found, never invent one). ' +\n    'No hype, no superlatives, no price talk, no made-up URLs or links. ' +\n    'Maximum 120 words. Plain, direct, one paragraph. ' +\n    'Return ONLY raw JSON, no markdown fences, no extra text, matching exactly this shape: ' +\n    '{\"draft\": \"the message text\", \"confidence\": 0.0, \"reason\": \"one-line reason for that confidence score\"}.';\n\n  out.push({ json: Object.assign({}, j, { prompt_text: prompt }) });\n}\nreturn out;\n"
+   },
+   "id": "ep09-build-prompt",
+   "name": "Build prompt",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    0,
+    300
+   ]
+  },
+  {
+   "parameters": {
+    "model": "openai/gpt-oss-20b",
+    "options": {}
+   },
+   "id": "ep09-openrouter-model",
+   "name": "OpenRouter gpt-oss-20b",
+   "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+   "typeVersion": 1,
+   "position": [
+    220,
+    520
+   ],
+   "credentials": {
+    "openAiApi": {
+     "id": "REPLACE_ME",
+     "name": "OpenRouter (REPLACE_ME)"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "promptType": "define",
+    "text": "={{ $json.prompt_text }}",
+    "messages": {
+     "messageValues": [
+      {
+       "type": "SystemMessagePromptTemplate",
+       "message": "You are a plain, direct outreach-drafting assistant. No hype, no superlatives, no price talk, no links you were not given. Reply with ONLY raw JSON, no markdown fences, no commentary."
+      }
+     ]
+    },
+    "batching": {}
+   },
+   "id": "ep09-draft",
+   "name": "Draft",
+   "type": "@n8n/n8n-nodes-langchain.chainLlm",
+   "typeVersion": 1.6,
+   "position": [
+    0,
+    480
+   ],
+   "retryOnFail": true,
+   "maxTries": 3,
+   "waitBetweenTries": 20000
+  },
+  {
+   "parameters": {
+    "mode": "runOnceForEachItem",
+    "language": "javaScript",
+    "jsCode": "// Schema gate. Runs per item. Enforces: stage from confidence, rejects any URL\n// in the draft that is not the lead's own raw_host, rejects >120 words. Throws\n// (never silently drops) -- REFUTE-FIRST requirement: prove this actually\n// blocks a foreign URL and an over-length draft, not just accepts everything.\nfunction wordCount(s) {\n  var t = String(s || '').trim();\n  if (!t) return 0;\n  return t.split(/\\s+/).length;\n}\n\nfunction urlsIn(s) {\n  var t = String(s || '');\n  var matches = t.match(/(https?:\\/\\/[^\\s)]+|\\bwww\\.[^\\s)]+|\\b[a-z0-9-]+\\.(com|net|org|io|co|ai|example)\\b)/gi);\n  return matches || [];\n}\n\nfunction hostOf(u) {\n  var s = String(u || '').toLowerCase();\n  s = s.replace(/^[a-z][a-z0-9+.-]*:\\/\\//, '');\n  s = s.split('/')[0].split('?')[0].split('#')[0];\n  s = s.replace(/^www\\./, '');\n  return s;\n}\n\n// chainLlm's own output ({text:\"...\"}) does NOT carry the input item's other\n// fields through (unlike a Code node's Object.assign passthrough) -- host_ref\n// and raw_host must be pulled from the paired upstream item by node reference,\n// matched on item index [observed 2026-09-24, exec 34588: idempotency_key was\n// \"ep09:undefined:...\" on every row until this fix].\nvar draftJson = $json;\nvar lead = {};\ntry {\n  lead = $('Build prompt').item.json || {};\n} catch (e) {\n  lead = {};\n}\n\nvar parsed = draftJson.output || draftJson.text || draftJson;\nif (typeof parsed === 'string') {\n  try { parsed = JSON.parse(parsed); } catch (e) { parsed = { draft: parsed, confidence: 0, reason: 'unparsed model output' }; }\n}\n\nvar draft = String((parsed && parsed.draft) || '');\nvar confidence = Number((parsed && parsed.confidence) != null ? parsed.confidence : 0);\nvar reason = String((parsed && parsed.reason) || '');\nvar allowedHost = String(lead.raw_host || '').toLowerCase();\nvar hostRef = lead.host_ref || null;\n\nvar wc = wordCount(draft);\nif (wc > 120) {\n  throw new Error('SCHEMA GATE: draft is ' + wc + ' words, over the 120-word limit. host_ref=' + hostRef);\n}\n\nvar found = urlsIn(draft);\nfor (var i = 0; i < found.length; i++) {\n  var h = hostOf(found[i]);\n  if (h && h !== allowedHost) {\n    throw new Error('SCHEMA GATE: draft contains a URL (' + found[i] + ') not present in the lead row. host_ref=' + hostRef);\n  }\n}\n\nvar stage = confidence >= 0.7 ? 'draft-ready' : 'needs-review';\n\nreturn { json: {\n  host_ref: hostRef,\n  stage: stage,\n  draft: draft,\n  confidence: confidence,\n  reason: reason,\n  word_count: wc,\n  idempotency_key: 'ep09:' + hostRef + ':' + $now.toFormat('yyyyLLdd')\n} };\n"
+   },
+   "id": "ep09-schema-gate",
+   "name": "Schema gate",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    460,
+    300
+   ],
+   "onError": "continueRegularOutput"
+  },
+  {
+   "parameters": {
+    "conditions": {
+     "options": {
+      "caseSensitive": true,
+      "leftValue": "",
+      "typeValidation": "loose"
+     },
+     "conditions": [
+      {
+       "leftValue": "={{ $json.stage }}",
+       "rightValue": "",
+       "operator": {
+        "type": "string",
+        "operation": "notEmpty"
+       }
+      }
+     ],
+     "combinator": "and"
+    },
+    "options": {}
+   },
+   "id": "ep09-valid-draft",
+   "name": "Valid draft?",
+   "type": "n8n-nodes-base.if",
+   "typeVersion": 2.2,
+   "position": [
+    580,
+    300
+   ]
+  },
+  {
+   "parameters": {},
+   "id": "ep09-rejected",
+   "name": "Rejected (schema gate)",
+   "type": "n8n-nodes-base.noOp",
+   "typeVersion": 1,
+   "position": [
+    580,
+    480
+   ]
+  },
+  {
+   "parameters": {
+    "operation": "executeQuery",
+    "query": "INSERT INTO ep09_drafts (host_ref, stage, draft, confidence, reason, idempotency_key) VALUES ($1,$2,$3,$4,$5,$6) ON CONFLICT (idempotency_key) DO NOTHING RETURNING id;",
+    "options": {
+     "queryReplacement": "={{ [ $json.host_ref, $json.stage, $json.draft, $json.confidence, $json.reason, $json.idempotency_key ] }}"
+    }
+   },
+   "id": "ep09-write-draft",
+   "name": "Write draft",
+   "type": "n8n-nodes-base.postgres",
+   "typeVersion": 2.7,
+   "position": [
+    700,
+    300
+   ],
+   "credentials": {
+    "postgres": {
+     "id": "REPLACE_ME",
+     "name": "Postgres (REPLACE_ME)"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "mode": "runOnceForAllItems",
+    "language": "javaScript",
+    "jsCode": "var callsToday = 0;\ntry { callsToday = Number($('Load caps').first().json.llm_calls_today || 0); } catch (e) { callsToday = 0; }\nreturn [{ json: { new_llm_calls_today: callsToday + $input.all().length } }];\n"
+   },
+   "id": "ep09-tally-drafts",
+   "name": "Tally drafts",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    700,
+    420
+   ]
+  },
+  {
+   "parameters": {
+    "resource": "row",
+    "operation": "update",
+    "dataTableId": {
+     "__rl": true,
+     "mode": "id",
+     "value": "REPLACE_ME",
+     "cachedResultName": "ep09_caps"
+    },
+    "matchType": "allConditions",
+    "filters": {
+     "conditions": [
+      {
+       "keyName": "cap_id",
+       "condition": "eq",
+       "keyValue": "ep09"
+      }
+     ]
+    },
+    "columns": {
+     "mappingMode": "defineBelow",
+     "value": {
+      "llm_calls_today": "={{ $json.new_llm_calls_today }}"
+     },
+     "matchingColumns": [],
+     "schema": []
+    }
+   },
+   "id": "ep09-bump-caps",
+   "name": "Bump caps",
+   "type": "n8n-nodes-base.dataTable",
+   "typeVersion": 1.1,
+   "position": [
+    940,
+    480
+   ]
+  },
+  {
+   "parameters": {
+    "mode": "runOnceForAllItems",
+    "language": "javaScript",
+    "jsCode": "// One summary item read straight off the execution panel.\nfunction all(name) {\n  try { return $(name).all().map(function (i) { return i.json; }); } catch (e) { return []; }\n}\n\nvar normalized = all('Mask + normalize');\nvar deduped = all('Dedupe by host');\nvar gated = all('Guard: cap');\nvar drafted = all('Schema gate');\nvar rejected = all('Rejected (schema gate)');\nvar written = all('Write draft');\n\n// Schema gate's output includes BOTH accepted items (have `stage`) and\n// continueRegularOutput error-wrapper items (no `stage`, routed to\n// Rejected (schema gate) by Valid draft?) -- only count the accepted ones here.\nvar draftReady = 0, needsReview = 0;\nfor (var i = 0; i < drafted.length; i++) {\n  if (!drafted[i] || !drafted[i].stage) continue;\n  if (drafted[i].stage === 'draft-ready') draftReady++;\n  else needsReview++;\n}\n\nvar dedupeIn = deduped.length ? Number(deduped[0]._dedupe_in || deduped.length) : 0;\nvar dedupeDropped = deduped.length ? Number(deduped[0]._dedupe_dropped || 0) : 0;\n\nreturn [{ json: {\n  leads_in: normalized.length,\n  after_dedupe: deduped.length,\n  dedupe_dropped: dedupeDropped,\n  drafts_attempted: gated.length,\n  drafts_rejected_by_schema_gate: rejected.length,\n  drafts_written: written.length,\n  stage_draft_ready: draftReady,\n  stage_needs_review: needsReview,\n  llm_calls_this_run: gated.length\n} }];\n"
+   },
+   "id": "ep09-run-summary",
+   "name": "Run summary",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    940,
+    300
+   ]
+  },
+  {
+   "parameters": {
+    "content": "## EP09 -- cap sheet (ep09_caps Data Table)\n\nmax_drafts_per_run 5 - max_drafts_per_day 50 - llm_calls_per_day 50 - kill_enabled true - breaker_tripped false - consecutive_errors 0 - error_trip_threshold 3.\n\nGuard: cap reads this BEFORE the model is called and throws (not skips) on kill/trip/budget. Bump caps writes llm_calls_today +1 after every successful draft.",
+    "height": 260,
+    "width": 460
+   },
+   "id": "ep09-note-caps",
+   "name": "Note: cap sheet",
+   "type": "n8n-nodes-base.stickyNote",
+   "typeVersion": 1,
+   "position": [
+    -1200,
+    -80
+   ]
+  },
+  {
+   "parameters": {
+    "content": "## THERE IS NO SEND NODE\n\nEvery draft is read by a human before anything leaves. This matches the estate rule: autosend RULED NO 2026-09-21 (memory hq-followup-autosend-engine). Schema gate rejects any draft over 120 words or carrying a URL not present in the source lead row -- see README REFUTE-FIRST.",
+    "height": 260,
+    "width": 460
+   },
+   "id": "ep09-note-no-send",
+   "name": "Note: no send node",
+   "type": "n8n-nodes-base.stickyNote",
+   "typeVersion": 1,
+   "position": [
+    460,
+    -80
+   ]
+  }
+ ],
+ "connections": {
+  "Manual Test": {
+   "main": [
+    [
+     {
+      "node": "Load caps",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Load caps": {
+   "main": [
+    [
+     {
+      "node": "Load leads (GitHub sample)",
+      "type": "main",
+      "index": 0
+     },
+     {
+      "node": "Load leads (Postgres ep09_leads)",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Webhook: leads in": {
+   "main": [
+    [
+     {
+      "node": "Load leads (GitHub sample)",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Load leads (Postgres ep09_leads)": {
+   "main": [
+    [
+     {
+      "node": "Mask + normalize",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Mask + normalize": {
+   "main": [
+    [
+     {
+      "node": "Dedupe by host",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Dedupe by host": {
+   "main": [
+    [
+     {
+      "node": "Guard: cap",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Guard: cap": {
+   "main": [
+    [
+     {
+      "node": "Build prompt",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Build prompt": {
+   "main": [
+    [
+     {
+      "node": "Draft",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Draft": {
+   "main": [
+    [
+     {
+      "node": "Schema gate",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Schema gate": {
+   "main": [
+    [
+     {
+      "node": "Valid draft?",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Valid draft?": {
+   "main": [
+    [
+     {
+      "node": "Write draft",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "Rejected (schema gate)",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Write draft": {
+   "main": [
+    [
+     {
+      "node": "Tally drafts",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Tally drafts": {
+   "main": [
+    [
+     {
+      "node": "Bump caps",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Bump caps": {
+   "main": [
+    [
+     {
+      "node": "Run summary",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "OpenRouter gpt-oss-20b": {
+   "ai_languageModel": [
+    [
+     {
+      "node": "Draft",
+      "type": "ai_languageModel",
+      "index": 0
+     }
+    ]
+   ]
+  }
+ },
+ "settings": {
+  "executionOrder": "v1",
+  "executionTimeout": 300
+ }
+}

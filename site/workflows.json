@@ -2,6 +2,13 @@
   "updated": "2026-09-24",
   "workflows": [
     {
+      "slug": "inbox-router-drafts-only",
+      "title": "Inbox router (rules-first, drafts only) - rules read 12/13 of mail, model reads the residue, no send node",
+      "status": "build",
+      "video_url": null,
+      "json_url": "https://github.com/waseemnasir2k26/n8n-workflows/tree/main/workflows/07-inbox-router-drafts-only"
+    },
+    {
       "slug": "freight-quote-parser",
       "title": "Freight quote email parser (Claude -> table + draft reply) - quote emails in, 8 fields per row keyed on message id, draft reply never sent",
       "status": "live",
@@ -31,7 +38,7 @@
     },
     {
       "slug": "workflow-library-signup",
-      "title": "Workflow library signup \u2014 webhook \u2192 validate \u2192 Postgres upsert \u2192 welcome email",
+      "title": "Workflow library signup — webhook → validate → Postgres upsert → welcome email",
       "status": "live",
       "video_url": null,
       "json_url": "https://github.com/waseemnasir2k26/n8n-workflows/tree/main/workflows/00-workflow-library-signup"
@@ -49,6 +56,13 @@
       "status": "live",
       "video_url": "https://youtu.be/jrVFBmUCsfo",
       "json_url": "https://github.com/waseemnasir2k26/n8n-workflows/tree/main/workflows/06-meta-ads-breaker"
+    },
+    {
+      "slug": "silent-lane-watchdog",
+      "title": "Silent-lane watchdog - obligation-aware silence check, 0 incidents for a quiet event-driven lane, 1 incident for a genuinely missed schedule",
+      "status": "build",
+      "video_url": null,
+      "json_url": "https://github.com/waseemnasir2k26/n8n-workflows/tree/main/workflows/08-silent-lane-watchdog"
     }
   ]
 }

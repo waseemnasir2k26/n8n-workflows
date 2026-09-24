@@ -1,0 +1,12 @@
+EP09 main workflow id: RZgeF0rW7k4fYq29
+EP09 error workflow id: lzLF5k5aHAbrrnBH
+ep09_caps Data Table id: UmhbmPrCFetQxX5J
+Postgres credential (VPS live copy): 92qip0eS5E8Lx3TH (LG Postgres)
+OpenRouter credential (VPS live copy): p72XkT0du5Eq7Ywl (EP05 OpenRouter, OpenAI-compatible)
+Model: openai/gpt-oss-20b (via OpenRouter)
+
+Proof run (canonical): execution 34613, 2026-09-24T14:49:15Z - 2026-09-24T14:50:11Z
+(56.5s wall clock for 5 drafts). 7 leads in -> 5 unique hosts after dedupe (2
+dropped) -> 5 LLM calls -> 5 drafts written (4 draft-ready, 1 needs-review,
+0 rejected by the schema gate). Both workflows confirmed active:false after
+every write.

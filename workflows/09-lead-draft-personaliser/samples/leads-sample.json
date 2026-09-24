@@ -1,0 +1,68 @@
+{
+  "note": "7 rows: 5 distinct-host test leads (L1-L5; L5 is the edge row with missing signals) + 2 rows that duplicate a host already in the 5 (D1 dupes L1, D2 dupes L3) -- proves Dedupe by host collapses 7 in to 5 unique. All hosts are SkynetLabs-owned or reserved/synthetic (.example, RFC 2606) -- never a real third-party domain.",
+  "leads": [
+    {
+      "lead_id": "L1",
+      "host": "skynetjoe.com",
+      "business_name": "SkynetLabs",
+      "niche": "AI automation agency",
+      "city": "Bali, ID",
+      "signal": "n8n Workflows series repo has 0 GitHub stars after 6 published episodes",
+      "source": "self-test"
+    },
+    {
+      "lead_id": "L2",
+      "host": "waseemnasir.com",
+      "business_name": "Waseem Nasir - Portfolio",
+      "niche": "freelance developer / consultant",
+      "city": "Bali, ID",
+      "signal": "portfolio site rebuilt in React, no case-study page for the n8n series yet",
+      "source": "self-test"
+    },
+    {
+      "lead_id": "L3",
+      "host": "demo-cafe-bali.example",
+      "business_name": "Demo Cafe Bali (synthetic)",
+      "niche": "cafe / hospitality",
+      "city": "Ubud, Bali",
+      "signal": "Google Business profile has no reply to a 3-star review from 3 weeks ago",
+      "source": "synthetic"
+    },
+    {
+      "lead_id": "L4",
+      "host": "acme-plumbing.example",
+      "business_name": "Acme Plumbing (synthetic)",
+      "niche": "plumbing / trades",
+      "city": "Perth, AU",
+      "signal": "contact form on the site has no confirmation message after submit",
+      "source": "synthetic"
+    },
+    {
+      "lead_id": "L5",
+      "host": "quiet-clinic.example",
+      "business_name": "Quiet Clinic (synthetic)",
+      "niche": null,
+      "city": null,
+      "signal": null,
+      "source": "synthetic-edge-case"
+    },
+    {
+      "lead_id": "D1-dupe-of-L1",
+      "host": "www.skynetjoe.com",
+      "business_name": "SkynetLabs",
+      "niche": "AI automation agency",
+      "city": "Bali, ID",
+      "signal": "same company as L1, found again via a second harvest pass with a www. host",
+      "source": "self-test-duplicate"
+    },
+    {
+      "lead_id": "D2-dupe-of-L3",
+      "host": "demo-cafe-bali.example",
+      "business_name": "Demo Cafe Bali (synthetic)",
+      "niche": "cafe / hospitality",
+      "city": "Ubud, Bali",
+      "signal": "same company as L3, listed twice because it has two Maps branches",
+      "source": "synthetic-duplicate"
+    }
+  ]
+}
