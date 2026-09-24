@@ -1,11 +1,11 @@
 EP10 The Lead Stack -- throwaway demo instance ids (n8n-stack-demo, 2026-09-24)
 
 THROWAWAY INSTANCE (not production -- see STACK.md "Infra")
-  Host: Contabo VPS 169.58.154.106, container n8n-stack-demo, image n8nio/n8n:2.33.7
-  Bound: 127.0.0.1:5679 only (never public). Tunnel: ssh -L 5679:127.0.0.1:5679 root@169.58.154.106
+  Host: a VPS YOUR-VPS-HOST, container n8n-stack-demo, image n8nio/n8n:2.33.7
+  Bound: 127.0.0.1:5679 only (never public). Tunnel: ssh -L 5679:127.0.0.1:5679 root@YOUR-VPS-HOST
   Postgres: database stack_demo on the existing n8n-postgres-1 container (never the production n8n database)
   Owner account: waseembali2k26@gmail.com
-  API key: C:\Users\info\.secrets\stack-demo.key (local) / /root/.stack_demo_apikey (VPS, root-only 600)
+  API key: ~/.secrets/stack-demo.key (local) / <root-only key file on the VPS> (VPS, root-only 600)
 
 MEASURED RUN (2026-09-24, clean install after a proven rollback):
   install.sh elapsed: 4s (cap 600s) -- first cold-container run measured 8s

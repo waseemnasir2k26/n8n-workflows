@@ -75,7 +75,7 @@ ALLOW_PORT_5678       must be "yes" to target port 5678 at all (see refusal)
 ./install.sh --rollback        # deletes exactly installed.json's ids
 ```
 
-## Measured — 2026-09-24 demo run (Contabo VPS 169.58.154.106)
+## Measured — 2026-09-24 demo run (a VPS YOUR-VPS-HOST)
 
 - Throwaway instance: `n8n-stack-demo` container, n8n **2.33.7**, bound to
   `127.0.0.1:5679` only (never exposed publicly — see "Infra" below).
@@ -157,14 +157,14 @@ https://n8n.skynetjoe.com/api/v1/workflows` via the production API key —
 - Port: bound `127.0.0.1:5679:5678` — **not** exposed on the VPS's public
   interface. Reach it from a laptop with an SSH tunnel:
   ```
-  ssh -L 5679:127.0.0.1:5679 root@169.58.154.106
+  ssh -L 5679:127.0.0.1:5679 root@YOUR-VPS-HOST
   # then http://127.0.0.1:5679 on your own machine
   ```
 - Owner account: `waseembali2k26@gmail.com` (created via `/rest/owner/setup`
   on the throwaway instance only).
-- API key location: `C:\Users\info\.secrets\stack-demo.key` (never in this
+- API key location: `~/.secrets/stack-demo.key` (never in this
   repo, never printed to any transcript). The VPS's own copy lives at
-  `/root/.stack_demo_apikey` (root-only, `chmod 600`); the Postgres password
+  `<root-only key file on the VPS>` (root-only, `chmod 600`); the Postgres password
   and n8n encryption key used to build the container live at
   `/root/.stack_demo_pgpass` and `/root/.stack_demo_enckey`, same permissions.
 
@@ -174,15 +174,15 @@ instance. **Do not tear down yet.**
 ### Teardown (when A2/A3 are done recording)
 
 ```bash
-ssh root@169.58.154.106
+ssh root@YOUR-VPS-HOST
 docker rm -f n8n-stack-demo
 docker exec -i n8n-postgres-1 psql -U n8n -d n8n -c "DROP DATABASE stack_demo;"
-rm -f /root/.stack_demo_apikey /root/.stack_demo_apikey_resp.json \
+rm -f <root-only key file on the VPS> <root-only key file on the VPS>_resp.json \
       /root/.stack_demo_cookie.txt /root/.stack_demo_pgpass \
       /root/.stack_demo_enckey /root/.stack_demo_ownerpass
 ```
 
-Then delete `C:\Users\info\.secrets\stack-demo.key` locally.
+Then delete `~/.secrets/stack-demo.key` locally.
 
 ## Rollback (routine, keeps the instance)
 
