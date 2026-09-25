@@ -1,6 +1,6 @@
 -- EP08 -- Silent-lane watchdog -- schema
 -- 4 Postgres tables. Never touch any other watchdog's tables (your own instance may already run one,
--- id JklxGG8fI6OXMQgu) -- this is an entirely separate, ep08_-prefixed set.
+-- with its own tables) -- this is an entirely separate, ep08_-prefixed set.
 -- Two Data Tables (ep08_lanes, ep08_caps) are NOT Postgres tables -- see
 -- data-table-spec.md.
 
