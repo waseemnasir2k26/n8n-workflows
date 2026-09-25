@@ -1,7 +1,11 @@
-# 08 -- Silent-lane watchdog (built after a 6-day dead lane, 0 errors)
+# 08 -- Silent-lane watchdog (obligation, not elapsed time)
 
-`EP08 Silent-lane watchdog (built after 6-day dead lane, 0 errors)` -- 18 nodes
-(16 working nodes + 2 sticky notes).
+`EP08 · Silent-lane watchdog` -- 18 nodes (16 working nodes + 2 sticky notes).
+
+<!-- QC R1 fix M14 (2026-09-25): the old title/name claimed a specific dead-lane
+gap-length figure the DB does not support (see "Real-incident lookup" below --
+the oldest retained execution row is 8 days newer than the date the gap would
+need). -->
 
 An n8n lane can stop doing its job while the execution log stays green -- a
 schedule that never fires again, a webhook lane whose upstream table quietly
@@ -167,7 +171,7 @@ see GOTCHAS.
 - **LG-08 (IMAP inbox lane) retention:** `execution_entity` on this instance
   currently retains `min(startedAt) = 2026-09-16`, `max = 2026-09-24`,
   `10079` rows for an 8-day window -- **not** the ~10k-rows/2.4-weeks figure
-  memory carried. A 6-day gap around 2026-09-04 is **not visible** -- the
+  memory carried. A six-day gap around 2026-09-04 is **not visible** -- the
   oldest row on record is 8 days newer than that date. Answer: **no, the gap
   is not visible; retention starts 2026-09-16, the incident (if real) is
   pruned.**
@@ -238,7 +242,8 @@ error_trip_threshold`, in addition to the stored boolean -- this is what
 - **Event-driven lanes need an `upstream_count_window`, not just a last-run
   timestamp.** A webhook lane with zero arrivals has nothing to run; treating
   "0 runs" alone as silence is the exact false-alarm this workflow exists to
-  avoid (see WD-01's day-one 3-false-alert incident, `feedback-silence-is-not-failure`).
+  avoid (see our own earlier watchdog's day-one 3-false-alert incident, which
+  motivated this rebuild).
 - **`execution_entity` retention is short on this instance (~8 days as of
   this build)**, not the ~2.4 weeks memory assumed -- a real silent-lane
   incident older than that is invisible to any watchdog reading this table.

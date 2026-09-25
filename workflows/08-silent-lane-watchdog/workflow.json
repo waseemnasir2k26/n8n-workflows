@@ -1,557 +1,503 @@
 {
- "name": "EP08 Silent-lane watchdog (built after 6-day dead lane, 0 errors)",
- "nodes": [
-  {
-   "parameters": {
-    "rule": {
-     "interval": [
-      {
-       "field": "hours",
-       "hoursInterval": 6
-      }
-     ]
-    }
-   },
-   "id": "ep08-every-6-hours",
-   "name": "Every 6 hours",
-   "type": "n8n-nodes-base.scheduleTrigger",
-   "typeVersion": 1.2,
-   "position": [
-    -1400,
-    180
-   ],
-   "disabled": true
-  },
-  {
-   "parameters": {},
-   "id": "ep08-manual-test",
-   "name": "Manual Test",
-   "type": "n8n-nodes-base.manualTrigger",
-   "typeVersion": 1,
-   "position": [
-    -1400,
-    360
-   ]
-  },
-  {
-   "parameters": {
-    "method": "GET",
-    "url": "={{ $('Load caps').first().json.n8n_base_url || 'http://localhost:5678' }}/api/v1/workflows?active=true",
-    "authentication": "predefinedCredentialType",
-    "nodeCredentialType": "httpHeaderAuth",
-    "sendHeaders": false,
-    "options": {}
-   },
-   "id": "ep08-list-workflows",
-   "name": "List workflows",
-   "type": "n8n-nodes-base.httpRequest",
-   "typeVersion": 4.2,
-   "position": [
-    -1160,
-    270
-   ],
-   "credentials": {
-    "httpHeaderAuth": {
-     "id": "REPLACE_ME",
-     "name": "n8n API (REPLACE_ME)"
-    }
-   },
-   "notesInFlow": false
-  },
-  {
-   "parameters": {
-    "mode": "runOnceForAllItems",
-    "language": "javaScript",
-    "jsCode": "// Mask lane names FIRST -- real n8n workflow names can embed client context\n// (name prefixes tied to a specific client). Compute a stable pseudonymous\n// lane_ref from a deterministic string hash and drop the real name before\n// anything downstream can store or render it.\n\nfunction stableHash(str) {\n  // FNV-1a 32-bit, pure JS, no crypto module needed in the n8n sandbox.\n  let h = 0x811c9dc5;\n  for (let i = 0; i < str.length; i++) {\n    h ^= str.charCodeAt(i);\n    h = (h * 0x01000193) >>> 0;\n  }\n  return h.toString(16).padStart(8, '0');\n}\n\nconst rawItems = $input.all();\nconst records = [];\nfor (const item of rawItems) {\n  const j = item.json;\n  if (j && Array.isArray(j.data)) {\n    records.push(...j.data);\n  } else {\n    records.push(j);\n  }\n}\nconst lanes = [];\n\nfor (const wf of records) {\n  // Sample-mode items already carry a synthetic lane_ref + declared fields --\n  // pass them through unmasked (they are synthetic, never real workflow names).\n  if (wf.sample_mode === true) {\n    lanes.push({\n      lane_ref: wf.lane_ref,\n      workflow_id: wf.workflow_id || ('sample-' + wf.lane_ref),\n      active: wf.active !== false,\n      upstream_count_window: wf.upstream_count_window,\n      run_count_window: wf.run_count_window,\n      last_success_at: wf.last_success_at || null\n    });\n    continue;\n  }\n\n  const realName = String(wf.name || '');\n  const hash = stableHash(realName);\n  lanes.push({\n    lane_ref: 'lane_' + hash.slice(0, 8),\n    workflow_id: wf.id,\n    active: wf.active === true\n    // realName intentionally dropped here -- never stored, never rendered.\n  });\n}\n\nreturn [{ json: { lanes } }];"
-   },
-   "id": "ep08-mask-lane-names",
-   "name": "Mask lane names",
-   "type": "n8n-nodes-base.code",
-   "typeVersion": 2,
-   "position": [
-    -920,
-    270
-   ]
-  },
-  {
-   "parameters": {
-    "resource": "row",
-    "operation": "get",
-    "dataTableId": {
-     "__rl": true,
-     "mode": "id",
-     "value": "REPLACE_ME",
-     "cachedResultName": "ep08_lanes"
-    },
-    "filters": {},
-    "returnAll": true
-   },
-   "id": "ep08-load-expectations",
-   "name": "Load expectations",
-   "type": "n8n-nodes-base.dataTable",
-   "typeVersion": 1.1,
-   "position": [
-    -680,
-    270
-   ]
-  },
-  {
-   "parameters": {
-    "operation": "executeQuery",
-    "query": "SELECT \"workflowId\" AS workflow_id,\n       max(\"startedAt\") FILTER (WHERE status = 'success') AS last_success_at,\n       count(*) FILTER (WHERE status = 'success' AND \"startedAt\" > now() - interval '7 days') AS run_count_window\nFROM execution_entity\nGROUP BY \"workflowId\";",
-    "options": {}
-   },
-   "id": "ep08-last-success-per-lane",
-   "name": "Last success per lane",
-   "type": "n8n-nodes-base.postgres",
-   "typeVersion": 2.7,
-   "position": [
-    -440,
-    270
-   ],
-   "credentials": {
-    "postgres": {
-     "id": "REPLACE_ME",
-     "name": "Postgres (REPLACE_ME)"
-    }
-   }
-  },
-  {
-   "parameters": {
-    "resource": "row",
-    "operation": "get",
-    "dataTableId": {
-     "__rl": true,
-     "mode": "id",
-     "value": "REPLACE_ME",
-     "cachedResultName": "ep08_caps"
-    },
-    "filters": {},
-    "returnAll": true
-   },
-   "id": "ep08-load-caps",
-   "name": "Load caps",
-   "type": "n8n-nodes-base.dataTable",
-   "typeVersion": 1.1,
-   "position": [
-    -1160,
-    90
-   ]
-  },
-  {
-   "parameters": {
-    "mode": "runOnceForAllItems",
-    "language": "javaScript",
-    "jsCode": "// Evaluate obligation -- decide, per lane, whether an obligation was missed.\n// Doctrine (feedback-silence-is-not-failure): a lane can be quiet and healthy\n// for three reasons -- no saved successes (unmeasurable), demand-driven with\n// no demand (event-driven, 0 upstream), or switched off. None of those three\n// may ever produce an incident.\n\nfunction dedupeByKey(arr, keyFn) {\n  const m = new Map();\n  for (const r of arr) m.set(keyFn(r), r);\n  return [...m.values()];\n}\n\nconst capsItems = $('Load caps').all();\nconst caps = capsItems.length ? capsItems[0].json : {};\nconst killEnabled = caps.kill_enabled === true || caps.kill_enabled === 'true';\nconst errorTripThreshold = Number(caps.error_trip_threshold != null ? caps.error_trip_threshold : 3);\nconst consecutiveErrors = Number(caps.consecutive_errors || 0);\nconst breakerTripped = caps.breaker_tripped === true || caps.breaker_tripped === 'true' ||\n  consecutiveErrors >= errorTripThreshold;\nconst maxIncidentsPerRun = Number(caps.max_incidents_per_run != null ? caps.max_incidents_per_run : 3);\nconst dryRun = caps.dry_run !== false;\n\nconst lanesRaw = $('Mask lane names').first().json.lanes || [];\nconst expectations = dedupeByKey(\n  $('Load expectations').all().map(i => i.json),\n  e => e.lane_ref\n);\nconst successRows = dedupeByKey(\n  $('Last success per lane').all().map(i => i.json),\n  s => s.workflow_id\n);\n\nconst expByRef = new Map(expectations.map(e => [e.lane_ref, e]));\nconst successByWid = new Map(successRows.map(s => [String(s.workflow_id), s]));\n\nconst nowMs = Date.now();\nconst runId = $execution.id || ('manual-' + nowMs);\nlet incidentsThisRun = 0;\n\nconst out = [];\n\nfor (const lane of lanesRaw) {\n  const base = {\n    run_id: runId,\n    lane_ref: lane.lane_ref,\n    workflow_id: lane.workflow_id\n  };\n\n  const exp = expByRef.get(lane.lane_ref);\n  if (!exp) {\n    out.push({ json: { ...base, kind: null, action: 'none', missed: false,\n      note: 'no expectation configured for this lane_ref' } });\n    continue;\n  }\n\n  if (lane.active === false) {\n    out.push({ json: { ...base, kind: exp.kind, action: 'none', missed: false,\n      note: 'switched off -- off is a decision, not a failure' } });\n    continue;\n  }\n\n  const succ = successByWid.get(String(lane.workflow_id));\n  const lastSuccessAt = succ && succ.last_success_at ? new Date(succ.last_success_at).getTime() : null;\n  const runCountWindow = succ ? Number(succ.run_count_window || 0) : 0;\n  const upstreamCountWindow = Number(\n    lane.upstream_count_window != null ? lane.upstream_count_window\n      : (exp.upstream_count_window != null ? exp.upstream_count_window : 0)\n  );\n\n  if (exp.kind === 'manual-run') {\n    if (lastSuccessAt == null) {\n      out.push({ json: { ...base, kind: exp.kind, action: 'reminder_manual', missed: false,\n        upstream_count_window: null, run_count_window: runCountWindow,\n        last_success_at: null, minutes_since_success: null,\n        note: 'manual-run lane never run -- reminder only, never an incident' } });\n    } else {\n      const minutesSince = (nowMs - lastSuccessAt) / 60000;\n      const overdue = minutesSince > Number(exp.expected_interval_min || 0);\n      out.push({ json: { ...base, kind: exp.kind,\n        action: overdue ? 'reminder_manual' : 'none', missed: false,\n        upstream_count_window: null, run_count_window: runCountWindow,\n        last_success_at: succ.last_success_at, minutes_since_success: Math.round(minutesSince),\n        note: overdue\n          ? ('manual-run overdue ' + Math.round(minutesSince) + 'm -- reminder only, never an incident')\n          : 'manual-run current' } });\n    }\n    continue;\n  }\n\n  if (exp.kind === 'scheduled') {\n    if (lastSuccessAt == null) {\n      out.push({ json: { ...base, kind: exp.kind, action: 'none', missed: false,\n        upstream_count_window: null, run_count_window: runCountWindow,\n        last_success_at: null, minutes_since_success: null,\n        note: 'unmeasurable -- no saved success on record, cannot assert silence' } });\n      continue;\n    }\n    const minutesSince = (nowMs - lastSuccessAt) / 60000;\n    const missed = minutesSince > Number(exp.expected_interval_min || 0);\n    out.push(finishMonitored(base, exp, missed,\n      { upstream_count_window: null, run_count_window: runCountWindow,\n        last_success_at: succ.last_success_at, minutes_since_success: Math.round(minutesSince) },\n      'minutes_since_success=' + Math.round(minutesSince) + ' expected=' + exp.expected_interval_min));\n    continue;\n  }\n\n  if (exp.kind === 'event-driven') {\n    const missed = upstreamCountWindow > 0 && runCountWindow === 0;\n    out.push(finishMonitored(base, exp, missed,\n      { upstream_count_window: upstreamCountWindow, run_count_window: runCountWindow,\n        last_success_at: succ ? succ.last_success_at : null, minutes_since_success: null },\n      missed\n        ? ('upstream=' + upstreamCountWindow + ' runs=0 -- arrivals with no runs')\n        : ('upstream=' + upstreamCountWindow + ' runs=' + runCountWindow + ' -- quiet is not failure here')));\n    continue;\n  }\n\n  if (exp.kind === 'upstream-count') {\n    const missed = runCountWindow < upstreamCountWindow;\n    out.push(finishMonitored(base, exp, missed,\n      { upstream_count_window: upstreamCountWindow, run_count_window: runCountWindow,\n        last_success_at: succ ? succ.last_success_at : null, minutes_since_success: null },\n      'upstream=' + upstreamCountWindow + ' runs=' + runCountWindow));\n    continue;\n  }\n\n  out.push({ json: { ...base, kind: exp.kind, action: 'none', missed: false,\n    note: 'unknown kind \"' + exp.kind + '\" -- refusing to guess, no incident' } });\n}\n\nfunction finishMonitored(base, exp, missed, extra, note) {\n  if (!missed) {\n    return { json: { ...base, kind: exp.kind, action: 'recover', missed: false, ...extra, note } };\n  }\n  if (!killEnabled || breakerTripped) {\n    return { json: { ...base, kind: exp.kind, action: 'none', missed: true, ...extra,\n      note: 'guard blocked: kill_enabled=' + killEnabled + ' breaker_tripped=' + breakerTripped } };\n  }\n  if (incidentsThisRun >= maxIncidentsPerRun) {\n    return { json: { ...base, kind: exp.kind, action: 'none', missed: true, ...extra,\n      note: 'guard blocked: max_incidents_per_run(' + maxIncidentsPerRun + ') reached this run' } };\n  }\n  incidentsThisRun++;\n  const dateKey = new Date().toISOString().slice(0, 10);\n  return { json: { ...base, kind: exp.kind, action: 'open', missed: true, ...extra, note,\n    idempotency_key: 'ep08:' + base.lane_ref + ':' + dateKey,\n    dry_run: dryRun } };\n}\n\nreturn out;"
-   },
-   "id": "ep08-evaluate-obligation",
-   "name": "Evaluate obligation",
-   "type": "n8n-nodes-base.code",
-   "typeVersion": 2,
-   "position": [
-    40,
-    270
-   ]
-  },
-  {
-   "parameters": {
-    "mode": "runOnceForAllItems",
-    "language": "javaScript",
-    "jsCode": "// Write whitelist gate -- the ONLY actions this workflow is permitted to turn\n// into a write are 'open' (incident upsert) and 'recover' (idempotent close).\n// Any other value refuses with a thrown error rather than silently passing\n// through or silently dropping the item.\n\nconst ALLOWED = new Set(['open', 'recover', 'reminder_manual', 'none']);\nconst WRITE_ACTIONS = new Set(['open', 'recover']);\n\nconst out = [];\nfor (const item of $input.all()) {\n  const action = item.json.action;\n  if (!ALLOWED.has(action)) {\n    throw new Error(\n      'Write whitelist gate: action \"' + action + '\" is not on the allowlist ' +\n      '(open|recover|reminder_manual|none). Refusing to write for lane ' +\n      (item.json.lane_ref || 'unknown') + '.'\n    );\n  }\n  if (WRITE_ACTIONS.has(action) && !item.json.lane_ref) {\n    throw new Error('Write whitelist gate: a write action arrived with no lane_ref.');\n  }\n  out.push(item);\n}\nreturn out;"
-   },
-   "id": "ep08-write-whitelist-gate",
-   "name": "Write whitelist gate",
-   "type": "n8n-nodes-base.code",
-   "typeVersion": 2,
-   "position": [
-    300,
-    180
-   ]
-  },
-  {
-   "parameters": {
-    "mode": "rules",
-    "rules": {
-     "values": [
-      {
-       "outputKey": "open",
-       "conditions": {
-        "options": {
-         "caseSensitive": true,
-         "leftValue": "",
-         "typeValidation": "strict"
-        },
-        "conditions": [
-         {
-          "leftValue": "={{ $json.action }}",
-          "rightValue": "open",
-          "operator": {
-           "type": "string",
-           "operation": "equals"
-          }
-         }
-        ],
-        "combinator": "and"
-       },
-       "renameOutput": true
+  "name": "EP08 · Silent-lane watchdog",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 6
+            }
+          ]
+        }
       },
-      {
-       "outputKey": "recover",
-       "conditions": {
-        "options": {
-         "caseSensitive": true,
-         "leftValue": "",
-         "typeValidation": "strict"
-        },
-        "conditions": [
-         {
-          "leftValue": "={{ $json.action }}",
-          "rightValue": "recover",
-          "operator": {
-           "type": "string",
-           "operation": "equals"
-          }
-         }
-        ],
-        "combinator": "and"
-       },
-       "renameOutput": true
-      }
-     ]
+      "id": "ep08-every-6-hours",
+      "name": "Every 6 hours",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [-1400, 180],
+      "disabled": true
     },
-    "options": {
-     "fallbackOutput": "none"
+    {
+      "parameters": {},
+      "id": "ep08-manual-test",
+      "name": "Manual Test",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [-1400, 360]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Load caps').first().json.n8n_base_url || 'http://localhost:5678' }}/api/v1/workflows?active=true",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "httpHeaderAuth",
+        "sendHeaders": false,
+        "options": {}
+      },
+      "id": "ep08-list-workflows",
+      "name": "List workflows",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-1160, 270],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_ME",
+          "name": "n8n API (REPLACE_ME)"
+        }
+      },
+      "notesInFlow": false
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// Mask lane names FIRST -- real n8n workflow names can embed client context\n// (name prefixes tied to a specific client). Compute a stable pseudonymous\n// lane_ref from a deterministic string hash and drop the real name before\n// anything downstream can store or render it.\n\nfunction stableHash(str) {\n  // FNV-1a 32-bit, pure JS, no crypto module needed in the n8n sandbox.\n  let h = 0x811c9dc5;\n  for (let i = 0; i < str.length; i++) {\n    h ^= str.charCodeAt(i);\n    h = (h * 0x01000193) >>> 0;\n  }\n  return h.toString(16).padStart(8, '0');\n}\n\nconst rawItems = $input.all();\nconst records = [];\nfor (const item of rawItems) {\n  const j = item.json;\n  if (j && Array.isArray(j.data)) {\n    records.push(...j.data);\n  } else {\n    records.push(j);\n  }\n}\nconst lanes = [];\n\nfor (const wf of records) {\n  // Sample-mode items already carry a synthetic lane_ref + declared fields --\n  // pass them through unmasked (they are synthetic, never real workflow names).\n  if (wf.sample_mode === true) {\n    lanes.push({\n      lane_ref: wf.lane_ref,\n      workflow_id: wf.workflow_id || ('sample-' + wf.lane_ref),\n      active: wf.active !== false,\n      upstream_count_window: wf.upstream_count_window,\n      run_count_window: wf.run_count_window,\n      last_success_at: wf.last_success_at || null\n    });\n    continue;\n  }\n\n  const realName = String(wf.name || '');\n  const hash = stableHash(realName);\n  lanes.push({\n    lane_ref: 'lane_' + hash.slice(0, 8),\n    workflow_id: wf.id,\n    active: wf.active === true\n    // realName intentionally dropped here -- never stored, never rendered.\n  });\n}\n\nreturn [{ json: { lanes } }];"
+      },
+      "id": "ep08-mask-lane-names",
+      "name": "Mask lane names",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-920, 270]
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "REPLACE_ME",
+          "cachedResultName": "ep08_lanes"
+        },
+        "filters": {},
+        "returnAll": true
+      },
+      "id": "ep08-load-expectations",
+      "name": "Load expectations",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [-680, 270]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT \"workflowId\" AS workflow_id,\n       max(\"startedAt\") FILTER (WHERE status = 'success') AS last_success_at,\n       count(*) FILTER (WHERE status = 'success' AND \"startedAt\" > now() - interval '7 days') AS run_count_window\nFROM execution_entity\nGROUP BY \"workflowId\";",
+        "options": {}
+      },
+      "id": "ep08-last-success-per-lane",
+      "name": "Last success per lane",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [-440, 270],
+      "credentials": {
+        "postgres": {
+          "id": "REPLACE_ME",
+          "name": "Postgres (REPLACE_ME)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "REPLACE_ME",
+          "cachedResultName": "ep08_caps"
+        },
+        "filters": {},
+        "returnAll": true
+      },
+      "id": "ep08-load-caps",
+      "name": "Load caps",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [-1160, 90]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// Evaluate obligation -- decide, per lane, whether an obligation was missed.\n// Doctrine (feedback-silence-is-not-failure): a lane can be quiet and healthy\n// for three reasons -- no saved successes (unmeasurable), demand-driven with\n// no demand (event-driven, 0 upstream), or switched off. None of those three\n// may ever produce an incident.\n\nfunction dedupeByKey(arr, keyFn) {\n  const m = new Map();\n  for (const r of arr) m.set(keyFn(r), r);\n  return [...m.values()];\n}\n\nconst capsItems = $('Load caps').all();\nconst caps = capsItems.length ? capsItems[0].json : {};\nconst killEnabled = caps.kill_enabled === true || caps.kill_enabled === 'true';\nconst errorTripThreshold = Number(caps.error_trip_threshold != null ? caps.error_trip_threshold : 3);\nconst consecutiveErrors = Number(caps.consecutive_errors || 0);\nconst breakerTripped = caps.breaker_tripped === true || caps.breaker_tripped === 'true' ||\n  consecutiveErrors >= errorTripThreshold;\nconst maxIncidentsPerRun = Number(caps.max_incidents_per_run != null ? caps.max_incidents_per_run : 3);\nconst dryRun = caps.dry_run !== false;\n\nconst lanesRaw = $('Mask lane names').first().json.lanes || [];\nconst expectations = dedupeByKey(\n  $('Load expectations').all().map(i => i.json),\n  e => e.lane_ref\n);\nconst successRows = dedupeByKey(\n  $('Last success per lane').all().map(i => i.json),\n  s => s.workflow_id\n);\n\nconst expByRef = new Map(expectations.map(e => [e.lane_ref, e]));\nconst successByWid = new Map(successRows.map(s => [String(s.workflow_id), s]));\n\nconst nowMs = Date.now();\nconst runId = $execution.id || ('manual-' + nowMs);\nlet incidentsThisRun = 0;\n\nconst out = [];\n\nfor (const lane of lanesRaw) {\n  const base = {\n    run_id: runId,\n    lane_ref: lane.lane_ref,\n    workflow_id: lane.workflow_id\n  };\n\n  const exp = expByRef.get(lane.lane_ref);\n  if (!exp) {\n    out.push({ json: { ...base, kind: null, action: 'none', missed: false,\n      note: 'no expectation configured for this lane_ref' } });\n    continue;\n  }\n\n  if (lane.active === false) {\n    out.push({ json: { ...base, kind: exp.kind, action: 'none', missed: false,\n      note: 'switched off -- off is a decision, not a failure' } });\n    continue;\n  }\n\n  const succ = successByWid.get(String(lane.workflow_id));\n  const lastSuccessAt = succ && succ.last_success_at ? new Date(succ.last_success_at).getTime() : null;\n  const runCountWindow = succ ? Number(succ.run_count_window || 0) : 0;\n  const upstreamCountWindow = Number(\n    lane.upstream_count_window != null ? lane.upstream_count_window\n      : (exp.upstream_count_window != null ? exp.upstream_count_window : 0)\n  );\n\n  if (exp.kind === 'manual-run') {\n    if (lastSuccessAt == null) {\n      out.push({ json: { ...base, kind: exp.kind, action: 'reminder_manual', missed: false,\n        upstream_count_window: null, run_count_window: runCountWindow,\n        last_success_at: null, minutes_since_success: null,\n        note: 'manual-run lane never run -- reminder only, never an incident' } });\n    } else {\n      const minutesSince = (nowMs - lastSuccessAt) / 60000;\n      const overdue = minutesSince > Number(exp.expected_interval_min || 0);\n      out.push({ json: { ...base, kind: exp.kind,\n        action: overdue ? 'reminder_manual' : 'none', missed: false,\n        upstream_count_window: null, run_count_window: runCountWindow,\n        last_success_at: succ.last_success_at, minutes_since_success: Math.round(minutesSince),\n        note: overdue\n          ? ('manual-run overdue ' + Math.round(minutesSince) + 'm -- reminder only, never an incident')\n          : 'manual-run current' } });\n    }\n    continue;\n  }\n\n  if (exp.kind === 'scheduled') {\n    if (lastSuccessAt == null) {\n      out.push({ json: { ...base, kind: exp.kind, action: 'none', missed: false,\n        upstream_count_window: null, run_count_window: runCountWindow,\n        last_success_at: null, minutes_since_success: null,\n        note: 'unmeasurable -- no saved success on record, cannot assert silence' } });\n      continue;\n    }\n    const minutesSince = (nowMs - lastSuccessAt) / 60000;\n    const missed = minutesSince > Number(exp.expected_interval_min || 0);\n    out.push(finishMonitored(base, exp, missed,\n      { upstream_count_window: null, run_count_window: runCountWindow,\n        last_success_at: succ.last_success_at, minutes_since_success: Math.round(minutesSince) },\n      'minutes_since_success=' + Math.round(minutesSince) + ' expected=' + exp.expected_interval_min));\n    continue;\n  }\n\n  if (exp.kind === 'event-driven') {\n    const missed = upstreamCountWindow > 0 && runCountWindow === 0;\n    out.push(finishMonitored(base, exp, missed,\n      { upstream_count_window: upstreamCountWindow, run_count_window: runCountWindow,\n        last_success_at: succ ? succ.last_success_at : null, minutes_since_success: null },\n      missed\n        ? ('upstream=' + upstreamCountWindow + ' runs=0 -- arrivals with no runs')\n        : ('upstream=' + upstreamCountWindow + ' runs=' + runCountWindow + ' -- quiet is not failure here')));\n    continue;\n  }\n\n  if (exp.kind === 'upstream-count') {\n    const missed = runCountWindow < upstreamCountWindow;\n    out.push(finishMonitored(base, exp, missed,\n      { upstream_count_window: upstreamCountWindow, run_count_window: runCountWindow,\n        last_success_at: succ ? succ.last_success_at : null, minutes_since_success: null },\n      'upstream=' + upstreamCountWindow + ' runs=' + runCountWindow));\n    continue;\n  }\n\n  out.push({ json: { ...base, kind: exp.kind, action: 'none', missed: false,\n    note: 'unknown kind \"' + exp.kind + '\" -- refusing to guess, no incident' } });\n}\n\nfunction finishMonitored(base, exp, missed, extra, note) {\n  if (!missed) {\n    return { json: { ...base, kind: exp.kind, action: 'recover', missed: false, ...extra, note } };\n  }\n  if (!killEnabled || breakerTripped) {\n    return { json: { ...base, kind: exp.kind, action: 'none', missed: true, ...extra,\n      note: 'guard blocked: kill_enabled=' + killEnabled + ' breaker_tripped=' + breakerTripped } };\n  }\n  if (incidentsThisRun >= maxIncidentsPerRun) {\n    return { json: { ...base, kind: exp.kind, action: 'none', missed: true, ...extra,\n      note: 'guard blocked: max_incidents_per_run(' + maxIncidentsPerRun + ') reached this run' } };\n  }\n  incidentsThisRun++;\n  const dateKey = new Date().toISOString().slice(0, 10);\n  return { json: { ...base, kind: exp.kind, action: 'open', missed: true, ...extra, note,\n    idempotency_key: 'ep08:' + base.lane_ref + ':' + dateKey,\n    dry_run: dryRun } };\n}\n\nreturn out;"
+      },
+      "id": "ep08-evaluate-obligation",
+      "name": "Evaluate obligation",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [40, 270]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// Write whitelist gate -- the ONLY actions this workflow is permitted to turn\n// into a write are 'open' (incident upsert) and 'recover' (idempotent close).\n// Any other value refuses with a thrown error rather than silently passing\n// through or silently dropping the item.\n\nconst ALLOWED = new Set(['open', 'recover', 'reminder_manual', 'none']);\nconst WRITE_ACTIONS = new Set(['open', 'recover']);\n\nconst out = [];\nfor (const item of $input.all()) {\n  const action = item.json.action;\n  if (!ALLOWED.has(action)) {\n    throw new Error(\n      'Write whitelist gate: action \"' + action + '\" is not on the allowlist ' +\n      '(open|recover|reminder_manual|none). Refusing to write for lane ' +\n      (item.json.lane_ref || 'unknown') + '.'\n    );\n  }\n  if (WRITE_ACTIONS.has(action) && !item.json.lane_ref) {\n    throw new Error('Write whitelist gate: a write action arrived with no lane_ref.');\n  }\n  out.push(item);\n}\nreturn out;"
+      },
+      "id": "ep08-write-whitelist-gate",
+      "name": "Write whitelist gate",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [300, 180]
+    },
+    {
+      "parameters": {
+        "mode": "rules",
+        "rules": {
+          "values": [
+            {
+              "outputKey": "open",
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "open",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true
+            },
+            {
+              "outputKey": "recover",
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "recover",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "none"
+        }
+      },
+      "id": "ep08-route",
+      "name": "Route",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [540, 180]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO ep08_incidents (lane_ref, status, reason, idempotency_key, opened_at, dry_run)\nVALUES ($1, 'open', $2, $3, now(), $4)\nON CONFLICT (idempotency_key) DO UPDATE SET reminded_at = now()\nRETURNING id, (xmax = 0) AS newly_opened;",
+        "options": {
+          "queryReplacement": "={{ [$json.lane_ref, $json.note, $json.idempotency_key, $json.dry_run] }}"
+        }
+      },
+      "id": "ep08-open-or-remind-incident",
+      "name": "Open or remind incident",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [800, 60],
+      "credentials": {
+        "postgres": {
+          "id": "REPLACE_ME",
+          "name": "Postgres (REPLACE_ME)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE ep08_incidents\nSET status = 'closed', closed_at = now()\nWHERE lane_ref = $1 AND status = 'open'\nRETURNING id;",
+        "options": {
+          "queryReplacement": "={{ [$json.lane_ref] }}"
+        }
+      },
+      "id": "ep08-recover",
+      "name": "Recover",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [800, 300],
+      "credentials": {
+        "postgres": {
+          "id": "REPLACE_ME",
+          "name": "Postgres (REPLACE_ME)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SLACK_WEBHOOK_URL }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ text: 'EP08 SILENT LANE: ' + $json.lane_ref + ' -- ' + $json.note }) }}",
+        "options": {}
+      },
+      "id": "ep08-post-to-slack",
+      "name": "Post to Slack",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1040, 60],
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// Run summary -- one row per run, plus the full per-lane journal for\n// ep08_lane_checks. Built directly off Evaluate obligation's output so the\n// summary always matches what Write whitelist gate actually allowed through.\n\nconst items = $('Evaluate obligation').all().map(i => i.json);\nconst caps = $('Load caps').all();\nconst dryRun = caps.length ? caps[0].json.dry_run !== false : true;\nconst capsRow = caps.length ? caps[0].json : {};\nconst breakerTripped = caps.length ? (capsRow.breaker_tripped === true || capsRow.breaker_tripped === 'true' ||\n  Number(capsRow.consecutive_errors || 0) >= Number(capsRow.error_trip_threshold != null ? capsRow.error_trip_threshold : 3)) : false;\n\nconst runId = items.length ? items[0].run_id : ('manual-' + Date.now());\n\nlet missedCount = 0, incidentsOpened = 0, incidentsRecovered = 0, remindersSent = 0, guardBlocked = 0;\n\nfor (const it of items) {\n  if (it.missed) missedCount++;\n  if (it.action === 'open') incidentsOpened++;\n  if (it.action === 'recover') incidentsRecovered++;\n  if (it.action === 'reminder_manual') remindersSent++;\n  if (it.action === 'none' && it.missed) guardBlocked++;\n}\n\nconst laneChecks = items.map(it => ({\n  lane_ref: it.lane_ref,\n  kind: it.kind || null,\n  expected_interval_min: it.expected_interval_min != null ? it.expected_interval_min : null,\n  last_success_at: it.last_success_at || null,\n  minutes_since_success: it.minutes_since_success != null ? it.minutes_since_success : null,\n  upstream_count_window: it.upstream_count_window != null ? it.upstream_count_window : null,\n  run_count_window: it.run_count_window != null ? it.run_count_window : null,\n  missed: !!it.missed,\n  action: it.action,\n  note: it.note || ''\n}));\n\nreturn [{\n  json: {\n    run_id: runId,\n    dry_run: dryRun,\n    lanes_evaluated: items.length,\n    missed_count: missedCount,\n    incidents_opened: incidentsOpened,\n    incidents_reminded: 0,\n    incidents_recovered: incidentsRecovered,\n    reminders_sent: remindersSent,\n    guard_blocked: guardBlocked > 0,\n    breaker_tripped: breakerTripped,\n    lane_checks_json: JSON.stringify(laneChecks)\n  }\n}];"
+      },
+      "id": "ep08-run-summary",
+      "name": "Run summary",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [300, 460]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO ep08_lane_checks (run_id, lane_ref, kind, expected_interval_min, last_success_at,\n  minutes_since_success, upstream_count_window, run_count_window, missed, action, note, created_at)\nSELECT $1, x.lane_ref, x.kind, x.expected_interval_min, x.last_success_at,\n       x.minutes_since_success, x.upstream_count_window, x.run_count_window, x.missed, x.action, x.note, now()\nFROM jsonb_to_recordset($2::jsonb) AS x(\n  lane_ref text, kind text, expected_interval_min int, last_success_at timestamptz,\n  minutes_since_success numeric, upstream_count_window int, run_count_window int,\n  missed boolean, action text, note text\n);",
+        "options": {
+          "queryReplacement": "={{ [$json.run_id, $json.lane_checks_json] }}"
+        }
+      },
+      "id": "ep08-insert-lane-checks",
+      "name": "Insert lane checks",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [540, 460],
+      "credentials": {
+        "postgres": {
+          "id": "REPLACE_ME",
+          "name": "Postgres (REPLACE_ME)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO ep08_run_summary (run_id, dry_run, lanes_evaluated, missed_count, incidents_opened,\n  incidents_reminded, incidents_recovered, reminders_sent, guard_blocked, breaker_tripped, created_at)\nVALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10, now())\nRETURNING id;",
+        "options": {
+          "queryReplacement": "={{ [$('Run summary').item.json.run_id, $('Run summary').item.json.dry_run, $('Run summary').item.json.lanes_evaluated, $('Run summary').item.json.missed_count, $('Run summary').item.json.incidents_opened, $('Run summary').item.json.incidents_reminded, $('Run summary').item.json.incidents_recovered, $('Run summary').item.json.reminders_sent, $('Run summary').item.json.guard_blocked, $('Run summary').item.json.breaker_tripped] }}"
+        }
+      },
+      "id": "ep08-insert-run-summary",
+      "name": "Insert run summary",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [780, 460],
+      "credentials": {
+        "postgres": {
+          "id": "REPLACE_ME",
+          "name": "Postgres (REPLACE_ME)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## EP08 -- Silent-lane watchdog\n\nRebuilt from scratch as a public MIT version. Never active on this instance.\nManual Test is the sanctioned run. Schedule ships DISABLED.\n\nDoctrine: a lane can be quiet and healthy for three reasons -- no saved\nsuccesses, no demand (event-driven), or switched off. None of those may ever\nbecome an incident. See README GOTCHAS.",
+        "height": 220,
+        "width": 340,
+        "color": 5
+      },
+      "id": "ep08-sticky-1",
+      "name": "Sticky1",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [-1400, -60]
+    },
+    {
+      "parameters": {
+        "content": "## Write whitelist\n\nOnly 'open' (upsert incident) and 'recover' (idempotent close) can reach\nPostgres. Everything else -- reminder_manual, none -- is journalled to\nep08_lane_checks only, never opens an incident. Slack is a DISABLED swap\npoint; flip it on only after you understand the cap sheet.",
+        "height": 220,
+        "width": 340,
+        "color": 6
+      },
+      "id": "ep08-sticky-2",
+      "name": "Sticky2",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [760, -220]
     }
-   },
-   "id": "ep08-route",
-   "name": "Route",
-   "type": "n8n-nodes-base.switch",
-   "typeVersion": 3.2,
-   "position": [
-    540,
-    180
-   ]
+  ],
+  "connections": {
+    "Every 6 hours": {
+      "main": [
+        [
+          {
+            "node": "Load caps",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manual Test": {
+      "main": [
+        [
+          {
+            "node": "Load caps",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "List workflows": {
+      "main": [
+        [
+          {
+            "node": "Mask lane names",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mask lane names": {
+      "main": [
+        [
+          {
+            "node": "Load expectations",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load expectations": {
+      "main": [
+        [
+          {
+            "node": "Last success per lane",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Last success per lane": {
+      "main": [
+        [
+          {
+            "node": "Evaluate obligation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load caps": {
+      "main": [
+        [
+          {
+            "node": "List workflows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Evaluate obligation": {
+      "main": [
+        [
+          {
+            "node": "Write whitelist gate",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Run summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Write whitelist gate": {
+      "main": [
+        [
+          {
+            "node": "Route",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route": {
+      "main": [
+        [
+          {
+            "node": "Open or remind incident",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Recover",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Open or remind incident": {
+      "main": [
+        [
+          {
+            "node": "Post to Slack",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run summary": {
+      "main": [
+        [
+          {
+            "node": "Insert lane checks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert lane checks": {
+      "main": [
+        [
+          {
+            "node": "Insert run summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
   },
-  {
-   "parameters": {
-    "operation": "executeQuery",
-    "query": "INSERT INTO ep08_incidents (lane_ref, status, reason, idempotency_key, opened_at, dry_run)\nVALUES ($1, 'open', $2, $3, now(), $4)\nON CONFLICT (idempotency_key) DO UPDATE SET reminded_at = now()\nRETURNING id, (xmax = 0) AS newly_opened;",
-    "options": {
-     "queryReplacement": "={{ [$json.lane_ref, $json.note, $json.idempotency_key, $json.dry_run] }}"
-    }
-   },
-   "id": "ep08-open-or-remind-incident",
-   "name": "Open or remind incident",
-   "type": "n8n-nodes-base.postgres",
-   "typeVersion": 2.7,
-   "position": [
-    800,
-    60
-   ],
-   "credentials": {
-    "postgres": {
-     "id": "REPLACE_ME",
-     "name": "Postgres (REPLACE_ME)"
-    }
-   }
-  },
-  {
-   "parameters": {
-    "operation": "executeQuery",
-    "query": "UPDATE ep08_incidents\nSET status = 'closed', closed_at = now()\nWHERE lane_ref = $1 AND status = 'open'\nRETURNING id;",
-    "options": {
-     "queryReplacement": "={{ [$json.lane_ref] }}"
-    }
-   },
-   "id": "ep08-recover",
-   "name": "Recover",
-   "type": "n8n-nodes-base.postgres",
-   "typeVersion": 2.7,
-   "position": [
-    800,
-    300
-   ],
-   "credentials": {
-    "postgres": {
-     "id": "REPLACE_ME",
-     "name": "Postgres (REPLACE_ME)"
-    }
-   }
-  },
-  {
-   "parameters": {
-    "method": "POST",
-    "url": "={{ $env.SLACK_WEBHOOK_URL }}",
-    "sendBody": true,
-    "specifyBody": "json",
-    "jsonBody": "={{ JSON.stringify({ text: 'EP08 SILENT LANE: ' + $json.lane_ref + ' -- ' + $json.note }) }}",
-    "options": {}
-   },
-   "id": "ep08-post-to-slack",
-   "name": "Post to Slack",
-   "type": "n8n-nodes-base.httpRequest",
-   "typeVersion": 4.2,
-   "position": [
-    1040,
-    60
-   ],
-   "disabled": true
-  },
-  {
-   "parameters": {
-    "mode": "runOnceForAllItems",
-    "language": "javaScript",
-    "jsCode": "// Run summary -- one row per run, plus the full per-lane journal for\n// ep08_lane_checks. Built directly off Evaluate obligation's output so the\n// summary always matches what Write whitelist gate actually allowed through.\n\nconst items = $('Evaluate obligation').all().map(i => i.json);\nconst caps = $('Load caps').all();\nconst dryRun = caps.length ? caps[0].json.dry_run !== false : true;\nconst capsRow = caps.length ? caps[0].json : {};\nconst breakerTripped = caps.length ? (capsRow.breaker_tripped === true || capsRow.breaker_tripped === 'true' ||\n  Number(capsRow.consecutive_errors || 0) >= Number(capsRow.error_trip_threshold != null ? capsRow.error_trip_threshold : 3)) : false;\n\nconst runId = items.length ? items[0].run_id : ('manual-' + Date.now());\n\nlet missedCount = 0, incidentsOpened = 0, incidentsRecovered = 0, remindersSent = 0, guardBlocked = 0;\n\nfor (const it of items) {\n  if (it.missed) missedCount++;\n  if (it.action === 'open') incidentsOpened++;\n  if (it.action === 'recover') incidentsRecovered++;\n  if (it.action === 'reminder_manual') remindersSent++;\n  if (it.action === 'none' && it.missed) guardBlocked++;\n}\n\nconst laneChecks = items.map(it => ({\n  lane_ref: it.lane_ref,\n  kind: it.kind || null,\n  expected_interval_min: it.expected_interval_min != null ? it.expected_interval_min : null,\n  last_success_at: it.last_success_at || null,\n  minutes_since_success: it.minutes_since_success != null ? it.minutes_since_success : null,\n  upstream_count_window: it.upstream_count_window != null ? it.upstream_count_window : null,\n  run_count_window: it.run_count_window != null ? it.run_count_window : null,\n  missed: !!it.missed,\n  action: it.action,\n  note: it.note || ''\n}));\n\nreturn [{\n  json: {\n    run_id: runId,\n    dry_run: dryRun,\n    lanes_evaluated: items.length,\n    missed_count: missedCount,\n    incidents_opened: incidentsOpened,\n    incidents_reminded: 0,\n    incidents_recovered: incidentsRecovered,\n    reminders_sent: remindersSent,\n    guard_blocked: guardBlocked > 0,\n    breaker_tripped: breakerTripped,\n    lane_checks_json: JSON.stringify(laneChecks)\n  }\n}];"
-   },
-   "id": "ep08-run-summary",
-   "name": "Run summary",
-   "type": "n8n-nodes-base.code",
-   "typeVersion": 2,
-   "position": [
-    300,
-    460
-   ]
-  },
-  {
-   "parameters": {
-    "operation": "executeQuery",
-    "query": "INSERT INTO ep08_lane_checks (run_id, lane_ref, kind, expected_interval_min, last_success_at,\n  minutes_since_success, upstream_count_window, run_count_window, missed, action, note, created_at)\nSELECT $1, x.lane_ref, x.kind, x.expected_interval_min, x.last_success_at,\n       x.minutes_since_success, x.upstream_count_window, x.run_count_window, x.missed, x.action, x.note, now()\nFROM jsonb_to_recordset($2::jsonb) AS x(\n  lane_ref text, kind text, expected_interval_min int, last_success_at timestamptz,\n  minutes_since_success numeric, upstream_count_window int, run_count_window int,\n  missed boolean, action text, note text\n);",
-    "options": {
-     "queryReplacement": "={{ [$json.run_id, $json.lane_checks_json] }}"
-    }
-   },
-   "id": "ep08-insert-lane-checks",
-   "name": "Insert lane checks",
-   "type": "n8n-nodes-base.postgres",
-   "typeVersion": 2.7,
-   "position": [
-    540,
-    460
-   ],
-   "credentials": {
-    "postgres": {
-     "id": "REPLACE_ME",
-     "name": "Postgres (REPLACE_ME)"
-    }
-   }
-  },
-  {
-   "parameters": {
-    "operation": "executeQuery",
-    "query": "INSERT INTO ep08_run_summary (run_id, dry_run, lanes_evaluated, missed_count, incidents_opened,\n  incidents_reminded, incidents_recovered, reminders_sent, guard_blocked, breaker_tripped, created_at)\nVALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10, now())\nRETURNING id;",
-    "options": {
-     "queryReplacement": "={{ [$('Run summary').item.json.run_id, $('Run summary').item.json.dry_run, $('Run summary').item.json.lanes_evaluated, $('Run summary').item.json.missed_count, $('Run summary').item.json.incidents_opened, $('Run summary').item.json.incidents_reminded, $('Run summary').item.json.incidents_recovered, $('Run summary').item.json.reminders_sent, $('Run summary').item.json.guard_blocked, $('Run summary').item.json.breaker_tripped] }}"
-    }
-   },
-   "id": "ep08-insert-run-summary",
-   "name": "Insert run summary",
-   "type": "n8n-nodes-base.postgres",
-   "typeVersion": 2.7,
-   "position": [
-    780,
-    460
-   ],
-   "credentials": {
-    "postgres": {
-     "id": "REPLACE_ME",
-     "name": "Postgres (REPLACE_ME)"
-    }
-   }
-  },
-  {
-   "parameters": {
-    "content": "## EP08 -- Silent-lane watchdog\n\nRebuilt from scratch (WD-01 is the live estate watchdog -- never modified here,\nGET-read only per census). Never active on this instance. Manual Test is the\nsanctioned run. Schedule ships DISABLED.\n\nDoctrine: a lane can be quiet and healthy for three reasons -- no saved\nsuccesses, no demand (event-driven), or switched off. None of those may ever\nbecome an incident. See README GOTCHAS.",
-    "height": 220,
-    "width": 340,
-    "color": 5
-   },
-   "id": "ep08-sticky-1",
-   "name": "Sticky1",
-   "type": "n8n-nodes-base.stickyNote",
-   "typeVersion": 1,
-   "position": [
-    -1400,
-    -60
-   ]
-  },
-  {
-   "parameters": {
-    "content": "## Write whitelist\n\nOnly 'open' (upsert incident) and 'recover' (idempotent close) can reach\nPostgres. Everything else -- reminder_manual, none -- is journalled to\nep08_lane_checks only, never opens an incident. Slack is a DISABLED swap\npoint; flip it on only after you understand the cap sheet.",
-    "height": 220,
-    "width": 340,
-    "color": 6
-   },
-   "id": "ep08-sticky-2",
-   "name": "Sticky2",
-   "type": "n8n-nodes-base.stickyNote",
-   "typeVersion": 1,
-   "position": [
-    760,
-    -220
-   ]
+  "settings": {
+    "executionOrder": "v1",
+    "executionTimeout": 120,
+    "errorWorkflow": "REPLACE_ME_ERROR_WID"
   }
- ],
- "connections": {
-  "Every 6 hours": {
-   "main": [
-    [
-     {
-      "node": "Load caps",
-      "type": "main",
-      "index": 0
-     }
-    ]
-   ]
-  },
-  "Manual Test": {
-   "main": [
-    [
-     {
-      "node": "Load caps",
-      "type": "main",
-      "index": 0
-     }
-    ]
-   ]
-  },
-  "List workflows": {
-   "main": [
-    [
-     {
-      "node": "Mask lane names",
-      "type": "main",
-      "index": 0
-     }
-    ]
-   ]
-  },
-  "Mask lane names": {
-   "main": [
-    [
-     {
-      "node": "Load expectations",
-      "type": "main",
-      "index": 0
-     }
-    ]
-   ]
-  },
-  "Load expectations": {
-   "main": [
-    [
-     {
-      "node": "Last success per lane",
-      "type": "main",
-      "index": 0
-     }
-    ]
-   ]
-  },
-  "Last success per lane": {
-   "main": [
-    [
-     {
-      "node": "Evaluate obligation",
-      "type": "main",
-      "index": 0
-     }
-    ]
-   ]
-  },
-  "Load caps": {
-   "main": [
-    [
-     {
-      "node": "List workflows",
-      "type": "main",
-      "index": 0
-     }
-    ]
-   ]
-  },
-  "Evaluate obligation": {
-   "main": [
-    [
-     {
-      "node": "Write whitelist gate",
-      "type": "main",
-      "index": 0
-     },
-     {
-      "node": "Run summary",
-      "type": "main",
-      "index": 0
-     }
-    ]
-   ]
-  },
-  "Write whitelist gate": {
-   "main": [
-    [
-     {
-      "node": "Route",
-      "type": "main",
-      "index": 0
-     }
-    ]
-   ]
-  },
-  "Route": {
-   "main": [
-    [
-     {
-      "node": "Open or remind incident",
-      "type": "main",
-      "index": 0
-     }
-    ],
-    [
-     {
-      "node": "Recover",
-      "type": "main",
-      "index": 0
-     }
-    ],
-    []
-   ]
-  },
-  "Open or remind incident": {
-   "main": [
-    [
-     {
-      "node": "Post to Slack",
-      "type": "main",
-      "index": 0
-     }
-    ]
-   ]
-  },
-  "Run summary": {
-   "main": [
-    [
-     {
-      "node": "Insert lane checks",
-      "type": "main",
-      "index": 0
-     }
-    ]
-   ]
-  },
-  "Insert lane checks": {
-   "main": [
-    [
-     {
-      "node": "Insert run summary",
-      "type": "main",
-      "index": 0
-     }
-    ]
-   ]
-  }
- },
- "settings": {
-  "executionOrder": "v1",
-  "executionTimeout": 120,
-  "errorWorkflow": "REPLACE_ME_ERROR_WID"
- }
 }
