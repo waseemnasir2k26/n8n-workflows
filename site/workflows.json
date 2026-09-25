@@ -5,7 +5,7 @@
       "slug": "inbox-router-drafts-only",
       "title": "Inbox router (rules-first, drafts only) - rules read 12/13 of mail, model reads the residue, no send node",
       "status": "build",
-      "video_url": null,
+      "video_url": "https://youtu.be/6eYrSKiPSrU",
       "json_url": "https://github.com/waseemnasir2k26/n8n-workflows/tree/main/workflows/07-inbox-router-drafts-only"
     },
     {
