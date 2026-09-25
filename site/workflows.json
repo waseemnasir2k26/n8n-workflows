@@ -61,7 +61,7 @@
       "slug": "silent-lane-watchdog",
       "title": "Silent-lane watchdog - obligation-aware silence check, 0 incidents for a quiet event-driven lane, 1 incident for a genuinely missed schedule",
       "status": "build",
-      "video_url": null,
+      "video_url": "https://youtu.be/nrCPGItqDgU",
       "json_url": "https://github.com/waseemnasir2k26/n8n-workflows/tree/main/workflows/08-silent-lane-watchdog"
     }
   ]
