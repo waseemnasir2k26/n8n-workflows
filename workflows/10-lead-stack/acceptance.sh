@@ -63,18 +63,18 @@ assert_execution() {
   fi
 }
 
-LEAD_REF=$(python3 -c "import json; print(json.load(open('$SCRIPT_DIR/seed/lead.json'))['lead_ref'])")
+LEAD_REF=$(python3 -c "import json,sys; print(json.load(open(sys.argv[1]))['lead_ref'])" "$SCRIPT_DIR/seed/lead.json")
 echo "== acceptance: lead_ref=$LEAD_REF =="
 
 echo "-- 1) real execution ids per brick --"
 if [ -f "$SCRIPT_DIR/installed.json" ]; then
   for brick in 03-maps-lead-harvest 02-speed-to-lead 09-lead-draft-personaliser 07-inbox-router-drafts-only 08-silent-lane-watchdog; do
     WFID=$(python3 -c "
-import json
-d = json.load(open('$SCRIPT_DIR/installed.json'))
-w = next((w for w in d['workflows'] if w['brick'] == '$brick'), None)
+import json,sys
+d = json.load(open(sys.argv[1]))
+w = next((w for w in d['workflows'] if w['brick'] == sys.argv[2]), None)
 print(w['id'] if w else '')
-")
+" "$SCRIPT_DIR/installed.json" "$brick")
     if [ -z "$WFID" ]; then
       echo "FAIL  $brick not found in installed.json"
       FAIL=1
@@ -109,14 +109,14 @@ assert_row "08-silent-lane-watchdog: ep08_lane_checks or ep08_errors carries at 
 echo "-- 3) installed.json sanity --"
 if [ -f "$SCRIPT_DIR/installed.json" ]; then
   python3 -c "
-import json
-d = json.load(open('$SCRIPT_DIR/installed.json'))
+import json,sys
+d = json.load(open(sys.argv[1]))
 n = len(d.get('workflows', []))
 assert n == 6, f'expected 6 workflows (5 bricks + error handler) in installed.json, got {n}'
 brick_names = {w['brick'] for w in d['workflows']}
 assert 'error-workflow' in brick_names, 'error-workflow missing from installed.json'
 print('PASS  installed.json lists 6 workflows (5 bricks + error handler)')
-"
+" "$SCRIPT_DIR/installed.json"
 else
   echo "FAIL  installed.json missing"
   FAIL=1

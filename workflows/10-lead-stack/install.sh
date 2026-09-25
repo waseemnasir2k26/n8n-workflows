@@ -184,7 +184,7 @@ EXISTING_NAMES_FILE="$SCRIPT_DIR/.existing_names.json"
 API GET "/api/v1/workflows?limit=250" > "$EXISTING_NAMES_FILE"
 COLLISION=0
 for b in "${BRICKS[@]}"; do
-  WF_NAME=$(python3 -c "import json;print(json.load(open('$SCRIPT_DIR/../$b/workflow.json'))['name'])")
+  WF_NAME=$(python3 -c "import json,sys;print(json.load(open(sys.argv[1]))['name'])" "$SCRIPT_DIR/../$b/workflow.json")
   HIT=$(python3 - "$EXISTING_NAMES_FILE" "$WF_NAME" <<'PY'
 import json, sys
 path, wf_name = sys.argv[1], sys.argv[2]

@@ -77,16 +77,16 @@ fi
 
 command -v python3 >/dev/null || { echo "python3 required" >&2; exit 1; }
 
-LEAD_REF=$(python3 -c "import json; print(json.load(open('$SCRIPT_DIR/seed/lead.json'))['lead_ref'])")
+LEAD_REF=$(python3 -c "import json,sys; print(json.load(open(sys.argv[1]))['lead_ref'])" "$SCRIPT_DIR/seed/lead.json")
 echo "== manual pass (REAL executions): lead_ref=$LEAD_REF ==" >&2
 
 # 0. Seed stack_leads + the one Postgres input table a brick reads directly (ep09_leads).
 python3 -c "
-import json
-d = json.load(open('$SCRIPT_DIR/seed/lead.json'))
+import json,sys
+d = json.load(open(sys.argv[1]))
 print('|'.join([d['lead_ref'], d['business_name'], d['niche'], d['city'], d['state'],
                 d['phone'], d['website'], d['email'], d['issue']]))
-" > "$SCRIPT_DIR/.seed_fields"
+" "$SCRIPT_DIR/seed/lead.json" > "$SCRIPT_DIR/.seed_fields"
 IFS='|' read -r LEAD_REF BIZ NICHE CITY STATE PHONE WEBSITE EMAIL ISSUE < "$SCRIPT_DIR/.seed_fields"
 rm -f "$SCRIPT_DIR/.seed_fields"
 esc() { printf "%s" "$1" | sed "s/'/''/g"; }
@@ -131,13 +131,13 @@ PYEOF
   curl -s -b "$COOKIE_FILE" -H 'Content-Type: application/json' -X POST \
     "$N8N_BASE_URL/rest/workflows/$wfid/run" -d @"$body_file" > "$resp_file"
   exec_id=$(python3 -c "
-import json
+import json,sys
 try:
-    d = json.load(open('$resp_file'))
+    d = json.load(open(sys.argv[1]))
     print(d.get('data', {}).get('executionId', ''))
 except Exception:
     print('')
-")
+" "$resp_file")
   if [ -z "$exec_id" ] && [ -n "$webhook_path" ] && grep -q "waitingForWebhook" "$resp_file"; then
     # Armed -- fire the real test-webhook call, then find the execution it created.
     local webhook_body_file="$SCRIPT_DIR/.whbody_$brick.json"
@@ -180,7 +180,7 @@ print(rows[0]['id'] if rows else '')
   echo "{\"brick\":\"$brick\",\"execution_id\":\"$exec_id\",\"status\":\"$status\"}"
 }
 
-get_id() { python3 -c "import json;d=json.load(open('$INSTALLED_JSON'));print(next(w['id'] for w in d['workflows'] if w['brick']=='$1'))"; }
+get_id() { python3 -c "import json,sys;d=json.load(open(sys.argv[1]));print(next(w['id'] for w in d['workflows'] if w['brick']==sys.argv[2]))" "$INSTALLED_JSON" "$1"; }
 
 WF03=$(get_id "03-maps-lead-harvest")
 WF02=$(get_id "02-speed-to-lead")
