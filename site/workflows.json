@@ -1,5 +1,5 @@
 {
-  "updated": "2026-09-28",
+  "updated": "2026-09-29",
   "workflows": [
     {
       "slug": "inbox-router-drafts-only",
@@ -70,6 +70,13 @@
       "status": "build",
       "video_url": null,
       "json_url": "https://github.com/waseemnasir2k26/n8n-workflows/tree/main/workflows/11-missed-call-to-text"
+    },
+    {
+      "slug": "photo-to-quote",
+      "title": "Photo from site becomes a quote draft (human approval gate, no send step) - vision model reads the photo and the note, your own rate card supplies every price, a Wait node holds the draft until a human approves",
+      "status": "build",
+      "video_url": null,
+      "json_url": "https://github.com/waseemnasir2k26/n8n-workflows/tree/main/workflows/12-photo-to-quote"
     }
   ]
 }
