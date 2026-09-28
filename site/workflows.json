@@ -1,5 +1,5 @@
 {
-  "updated": "2026-09-24",
+  "updated": "2026-09-29",
   "workflows": [
     {
       "slug": "inbox-router-drafts-only",
@@ -63,6 +63,13 @@
       "status": "build",
       "video_url": "https://youtu.be/nrCPGItqDgU",
       "json_url": "https://github.com/waseemnasir2k26/n8n-workflows/tree/main/workflows/08-silent-lane-watchdog"
+    },
+    {
+      "slug": "photo-to-quote",
+      "title": "Photo from site becomes a quote draft (human approval gate, terminal branches) - vision model reads the photo and the note, your own rate card supplies every price, a Wait node holds the draft until a human approves; nothing in it can reach your customer, no email node, no messaging node",
+      "status": "build",
+      "video_url": null,
+      "json_url": "https://github.com/waseemnasir2k26/n8n-workflows/tree/main/workflows/12-photo-to-quote"
     }
   ]
 }

@@ -1,0 +1,24 @@
+item_code,item_label,unit_label,unit_price,min_qty,trade_code,notes
+RF-TILE-REPLACE,Replace slipped or broken roof tile,per tile,28,4,roofing,ILLUSTRATIVE PRICE - replace with your own
+RF-RIDGE-REBED,Re-bed ridge tile in mortar,per metre,62,1,roofing,ILLUSTRATIVE PRICE - replace with your own
+RF-FLASH-LEAD,Replace lead flashing to abutment,per metre,88,1,roofing,ILLUSTRATIVE PRICE - replace with your own
+RF-FELT-PATCH,Patch torn roofing felt under tiles,per m2,54,1,roofing,ILLUSTRATIVE PRICE - replace with your own
+RF-VALLEY,Renew valley to one junction,per metre,96,1,roofing,ILLUSTRATIVE PRICE - replace with your own
+RF-CHIM-REPOINT,Repoint chimney stack,per stack,340,1,roofing,ILLUSTRATIVE PRICE - replace with your own
+GUT-CLEAR,Clear and flush guttering,per metre,9.5,6,roofing,ILLUSTRATIVE PRICE - replace with your own
+GUT-REPLACE,Replace uPVC gutter run,per metre,34,2,roofing,ILLUSTRATIVE PRICE - replace with your own
+GUT-DOWNPIPE,Replace downpipe,per metre,29,2,roofing,ILLUSTRATIVE PRICE - replace with your own
+FAS-REPLACE,Replace fascia board,per metre,46,1,roofing,ILLUSTRATIVE PRICE - replace with your own
+SOF-REPLACE,Replace soffit board,per metre,41,1,roofing,ILLUSTRATIVE PRICE - replace with your own
+BRK-REPOINT,Repoint brickwork,per m2,78,1,roofing,ILLUSTRATIVE PRICE - replace with your own
+REND-PATCH,Patch external render,per m2,64,1,roofing,ILLUSTRATIVE PRICE - replace with your own
+DAMP-TREAT,Damp treatment to internal wall,per m2,95,1,roofing,ILLUSTRATIVE PRICE - replace with your own
+PLAS-SKIM,Plaster skim to made-good area,per m2,32,1,roofing,ILLUSTRATIVE PRICE - replace with your own
+SCAF-TOWER,Scaffold tower hire,per day,120,1,any,ILLUSTRATIVE PRICE - replace with your own
+SCAF-EDGE,Edge scaffold to one elevation,per week,480,1,any,ILLUSTRATIVE PRICE - replace with your own
+ACCESS-LADDER,Ladder and safety access set-up,per visit,45,1,any,ILLUSTRATIVE PRICE - replace with your own
+WASTE-SKIP,Four-yard skip including permit,per skip,265,1,any,ILLUSTRATIVE PRICE - replace with your own
+CALLOUT,Call-out and site inspection,per visit,75,1,any,ILLUSTRATIVE PRICE - replace with your own
+LAB-HOUR,Labour tradesperson,per hour,42,1,any,ILLUSTRATIVE PRICE - replace with your own
+LAB-DAY,Labour tradesperson,per day,310,1,any,ILLUSTRATIVE PRICE - replace with your own
+MIN-CHARGE,Minimum job charge,per job,150,1,any,ILLUSTRATIVE PRICE - replace with your own
