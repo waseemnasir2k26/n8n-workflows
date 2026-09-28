@@ -1,5 +1,5 @@
 {
-  "updated": "2026-09-24",
+  "updated": "2026-09-28",
   "workflows": [
     {
       "slug": "inbox-router-drafts-only",
@@ -63,6 +63,13 @@
       "status": "build",
       "video_url": "https://youtu.be/nrCPGItqDgU",
       "json_url": "https://github.com/waseemnasir2k26/n8n-workflows/tree/main/workflows/08-silent-lane-watchdog"
+    },
+    {
+      "slug": "missed-call-to-text",
+      "title": "Missed call becomes a text in sixty seconds (4 nodes, simulated send) - webhook missed-call event in, apology + booking text composed and logged as a job that needs a callback",
+      "status": "build",
+      "video_url": null,
+      "json_url": "https://github.com/waseemnasir2k26/n8n-workflows/tree/main/workflows/11-missed-call-to-text"
     }
   ]
 }
