@@ -1,0 +1,436 @@
+{
+  "name": "EP12 Photo from site -> line-itemed quote draft (human approval gate, no send step, 12 nodes)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "ep12-photo-to-quote",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "ep12-webhook",
+      "name": "Site photo in",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -760,
+        300
+      ],
+      "webhookId": "ep12-photo-to-quote",
+      "notes": "POST a photo URL plus the note the lad on site typed. Demo payload in README (sample-site-photo.json)."
+    },
+    {
+      "parameters": {
+        "jsCode": "// EP12 - read the site photo + the note that came with it.\n// Nothing here is client data: every value comes from the POSTed body or the constants below.\nconst TRADE_CODE = \"roofing\"; // which slice of the rate card this lane quotes for\nconst CURRENCY = \"GBP\"; // rate-card currency - must match your Data Table\nconst TAX_RATE = 0.2; // 20% VAT. Set to 0 if you quote tax-exclusive.\nconst MAX_NOTE_LEN = 1200; // the vision call only ever sees this much of the note\n\n// Field names are chosen defensively. n8n's expression sandbox refuses some identifiers\n// outright (EP11: `{{ $json.caller }}` -> \"Cannot access \\\"caller\\\" due to security concerns\"),\n// so nothing downstream is named caller / callee / arguments / constructor / prototype.\nfunction firstOf(src, keys) {\n  for (const k of keys) {\n    const v = src[k];\n    if (v !== undefined && v !== null && String(v).trim() !== \"\")\n      return String(v).trim();\n  }\n  return \"\";\n}\n\nconst stamp = new Date().toISOString();\n\nreturn items.map((entry, idx) => {\n  const src = entry.json.body ?? entry.json;\n\n  const photoUrl = firstOf(src, [\n    \"photo_url\",\n    \"photoUrl\",\n    \"image_url\",\n    \"imageUrl\",\n    \"file_url\",\n    \"attachment_url\",\n  ]);\n  const note = firstOf(src, [\n    \"note\",\n    \"site_note\",\n    \"message\",\n    \"body_text\",\n    \"description\",\n    \"comments\",\n  ]).slice(0, MAX_NOTE_LEN);\n  const who =\n    firstOf(src, [\"from_name\", \"sender_name\", \"requester_name\", \"name\"]) ||\n    \"site (unnamed)\";\n  const mail = firstOf(src, [\n    \"from_email\",\n    \"sender_email\",\n    \"requester_email\",\n    \"email\",\n  ]);\n  const address =\n    firstOf(src, [\"site_ref\", \"job_ref\", \"address_ref\", \"reference\"]) ||\n    \"no-site-ref\";\n\n  // A quote reference we control. Never the customer's name, never their address.\n  const ref =\n    \"Q-\" +\n    stamp.slice(0, 10).replace(/-/g, \"\") +\n    \"-\" +\n    String(idx + 1).padStart(3, \"0\");\n\n  const httpsPhoto = /^https:\\/\\/\\S+$/i.test(photoUrl);\n  const intake = !httpsPhoto\n    ? \"rejected_no_usable_photo\"\n    : note === \"\"\n      ? \"accepted_photo_only\"\n      : \"accepted_photo_and_note\";\n\n  return {\n    json: {\n      quote_ref: ref,\n      received_at: stamp,\n      photo_url: httpsPhoto ? photoUrl : \"\",\n      site_note: note,\n      site_ref: address,\n      requester_name: who,\n      requester_email: mail,\n      trade_code: TRADE_CODE,\n      currency_code: CURRENCY,\n      tax_rate: TAX_RATE,\n      intake_status: intake,\n    },\n  };\n});\n"
+      },
+      "id": "ep12-intake",
+      "name": "Read the photo and the note",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -540,
+        300
+      ],
+      "notes": "Normalises any INBOUND intake shape (a web form, an email-to-webhook parser, a WhatsApp-to-webhook bridge) to one flat item. Refuses a non-https photo. Mints the quote_ref. Field names avoid the n8n sandbox blacklist (no 'caller')."
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "REPLACE_ME",
+          "cachedResultName": "ep12_rate_card"
+        },
+        "filters": {},
+        "returnAll": true
+      },
+      "id": "ep12-ratecard",
+      "name": "Load the rate card",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        -320,
+        300
+      ],
+      "notes": "YOUR prices, in YOUR table. ILLUSTRATIVE SAMPLE PRICES SHIP WITH THIS EPISODE (rate-card-sample.csv) - they are made up for the demo and must be replaced with your own before you quote anybody."
+    },
+    {
+      "parameters": {
+        "jsCode": "// EP12 - turn the rate card rows + the intake item into ONE vision request body.\n// Runs once for all items: input here is every row of ep12_rate_card.\nconst MODEL = \"anthropic/claude-sonnet-4.5\"; // any vision model your endpoint serves\nconst MAX_TOKENS = 1500;\nconst MAX_LINES = 12; // refuse to draft a novel\n\nconst intake = $(\"Read the photo and the note\").first().json;\n\n// The rate card is the ONLY source of prices. The model never sees a price it can change,\n// and never invents one: it may only return item_code + qty. Pricing happens in the next node.\nconst card = items\n  .map((r) => r.json)\n  .filter(\n    (r) =>\n      !r.trade_code ||\n      !intake.trade_code ||\n      String(r.trade_code) === String(intake.trade_code) ||\n      String(r.trade_code) === \"any\",\n  )\n  .map((r) => ({\n    item_code: String(r.item_code ?? \"\"),\n    item_label: String(r.item_label ?? \"\"),\n    unit_label: String(r.unit_label ?? \"\"),\n  }))\n  .filter((r) => r.item_code !== \"\");\n\nconst catalogue = card\n  .map((r) => `${r.item_code} | ${r.item_label} | priced ${r.unit_label}`)\n  .join(\"\\n\");\n\nconst systemText = [\n  \"You are a quantity surveyor reading one photograph from a building site.\",\n  \"You may ONLY select work items from the catalogue given to you, by their exact item_code.\",\n  \"You never invent an item_code. You never state, guess or adjust a price - you are not shown prices.\",\n  \"If the photo is too dark, too tight, or too ambiguous to judge, say so and return fewer items.\",\n  \"Quantities are estimates from a photo, not measurements. Be conservative: under-quote rather than over-quote.\",\n  `Return at most ${MAX_LINES} line items.`,\n  \"Reply with JSON only, no prose, in exactly this shape:\",\n  '{\"observed\":\"one sentence on what is visibly wrong\",\"lines\":[{\"item_code\":\"X\",\"qty\":1,\"reason\":\"why this photo justifies it\"}],\"confidence\":0.0,\"needs_site_visit\":false,\"missing_info\":[\"what a human must confirm\"]}',\n].join(\" \");\n\nconst userText = [\n  \"CATALOGUE (item_code | description | unit):\",\n  catalogue || \"(empty - the rate card returned no rows for this trade)\",\n  \"\",\n  \"NOTE FROM SITE:\",\n  intake.site_note || \"(no note was sent with the photo)\",\n  \"\",\n  \"Read the photograph and return the JSON.\",\n].join(\"\\n\");\n\nconst requestBody = {\n  model: MODEL,\n  max_tokens: MAX_TOKENS,\n  temperature: 0,\n  messages: [\n    { role: \"system\", content: systemText },\n    {\n      role: \"user\",\n      content: [\n        { type: \"text\", text: userText },\n        { type: \"image_url\", image_url: { url: intake.photo_url } },\n      ],\n    },\n  ],\n};\n\nreturn [\n  {\n    json: {\n      quote_ref: intake.quote_ref,\n      intake_status: intake.intake_status,\n      card_rows: card.length,\n      request_body: requestBody,\n    },\n  },\n];\n"
+      },
+      "id": "ep12-prompt",
+      "name": "Build the vision request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -100,
+        300
+      ],
+      "notes": "Builds one chat-completions body: the photo, the site note, and the catalogue of item_codes. The model is never shown a price, so it can never change one."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://openrouter.ai/api/v1/chat/completions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.request_body) }}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "ep12-vision",
+      "name": "Vision model reads the photo",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        120,
+        300
+      ],
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_ME",
+          "name": "REPLACE_ME - vision endpoint (Header Auth: Authorization / Bearer ...)"
+        }
+      },
+      "notes": "Any OpenAI-compatible vision endpoint. onError=continue on purpose: a dead model must still produce a draft the human sees flagged, never a silent nothing."
+    },
+    {
+      "parameters": {
+        "jsCode": "// EP12 - price the model's picks against the rate card. THE MODEL'S NUMBERS NEVER BECOME MONEY.\n// The model returned item_code + qty. Every unit price below is read from the Data Table rows\n// fetched earlier, so a hallucinated price cannot reach a customer - a hallucinated CODE just\n// gets dropped into unmatched_note and the human sees it at the gate.\nconst GATE_STATE = \"awaiting_human_approval\"; // every draft lands here. No auto-send path exists.\nconst QTY_CEILING = 500; // a photo cannot justify more than this; clamp and flag.\n\nconst intake = $(\"Read the photo and the note\").first().json;\nconst prompt = $(\"Build the vision request\").first().json;\n\n// --- rate card, keyed by code -------------------------------------------------\nconst card = {};\nfor (const row of $(\"Load the rate card\").all()) {\n  const r = row.json;\n  const code = String(r.item_code ?? \"\").trim();\n  if (!code) continue;\n  card[code.toUpperCase()] = {\n    item_code: code,\n    item_label: String(r.item_label ?? code),\n    unit_label: String(r.unit_label ?? \"each\"),\n    unit_price: Number(r.unit_price ?? 0) || 0,\n    min_qty: Number(r.min_qty ?? 0) || 0,\n  };\n}\n\n// --- whatever the vision call gave us ----------------------------------------\nconst raw = items[0] ? items[0].json : {};\nlet parsed = null;\nlet readFailure = \"\";\n\ntry {\n  const text =\n    raw?.choices?.[0]?.message?.content ??\n    raw?.content?.[0]?.text ??\n    raw?.output_text ??\n    \"\";\n  const body = typeof text === \"string\" ? text : JSON.stringify(text);\n  const start = body.indexOf(\"{\");\n  const end = body.lastIndexOf(\"}\");\n  if (start === -1 || end === -1)\n    throw new Error(\"no JSON object in the model reply\");\n  parsed = JSON.parse(body.slice(start, end + 1));\n} catch (err) {\n  readFailure = String(err.message || err);\n}\n\nconst picks = Array.isArray(parsed?.lines) ? parsed.lines : [];\n\n// --- build the priced lines ---------------------------------------------------\nconst lines = [];\nconst unmatched = [];\nlet clamped = false;\n\nfor (const pick of picks.slice(0, 12)) {\n  const code = String(pick?.item_code ?? \"\")\n    .trim()\n    .toUpperCase();\n  const hit = card[code];\n  if (!hit) {\n    if (code) unmatched.push(code);\n    continue;\n  }\n  let qty = Number(pick?.qty ?? 0);\n  if (!isFinite(qty) || qty <= 0) qty = hit.min_qty || 1;\n  if (qty > QTY_CEILING) {\n    qty = QTY_CEILING;\n    clamped = true;\n  }\n  if (hit.min_qty && qty < hit.min_qty) qty = hit.min_qty;\n  qty = Math.round(qty * 100) / 100;\n\n  lines.push({\n    item_code: hit.item_code,\n    item_label: hit.item_label,\n    unit_label: hit.unit_label,\n    qty,\n    unit_price: hit.unit_price,\n    line_total: Math.round(qty * hit.unit_price * 100) / 100,\n    reason: String(pick?.reason ?? \"\").slice(0, 200),\n  });\n}\n\nconst money = (n) => (Math.round(n * 100) / 100).toFixed(2);\nconst subtotal =\n  Math.round(lines.reduce((a, l) => a + l.line_total, 0) * 100) / 100;\nconst taxRate = Number(intake.tax_rate ?? 0) || 0;\nconst tax = Math.round(subtotal * taxRate * 100) / 100;\nconst total = Math.round((subtotal + tax) * 100) / 100;\n\n// --- why a human has to look at this -----------------------------------------\nconst flags = [];\nif (readFailure) flags.push(\"vision_call_unreadable: \" + readFailure);\nif (intake.intake_status === \"rejected_no_usable_photo\")\n  flags.push(\"no_usable_photo\");\nif (intake.intake_status === \"accepted_photo_only\")\n  flags.push(\"no_note_from_site\");\nif (!lines.length) flags.push(\"nothing_priced\");\nif (unmatched.length)\n  flags.push(\"model_invented_codes: \" + unmatched.join(\",\"));\nif (clamped) flags.push(\"quantity_clamped_to_\" + QTY_CEILING);\nif (parsed?.needs_site_visit === true)\n  flags.push(\"model_says_site_visit_needed\");\nif (Array.isArray(parsed?.missing_info) && parsed.missing_info.length)\n  flags.push(\"missing_info: \" + parsed.missing_info.slice(0, 4).join(\"; \"));\n\nconst quoteText = [\n  `DRAFT QUOTE ${intake.quote_ref}  (site ref ${intake.site_ref})`,\n  `Prepared from one site photo on ${intake.received_at}. NOT SENT - awaiting human approval.`,\n  \"\",\n  ...(lines.length\n    ? lines.map(\n        (l) =>\n          `${l.qty} x ${l.item_label} (${l.item_code}, ${l.unit_label}) @ ${intake.currency_code} ${money(l.unit_price)} = ${intake.currency_code} ${money(l.line_total)}`,\n      )\n    : [\"(no line item could be priced from this photo)\"]),\n  \"\",\n  `Subtotal  ${intake.currency_code} ${money(subtotal)}`,\n  `Tax @${Math.round(taxRate * 100)}%  ${intake.currency_code} ${money(tax)}`,\n  `TOTAL     ${intake.currency_code} ${money(total)}`,\n  \"\",\n  \"Prices come from your own rate card, not from the model. Quantities are estimated from a\",\n  \"photograph and are not measurements. Nothing above has been sent to anyone.\",\n].join(\"\\n\");\n\nreturn [\n  {\n    json: {\n      quote_ref: intake.quote_ref,\n      received_at: intake.received_at,\n      site_ref: intake.site_ref,\n      requester_name: intake.requester_name,\n      requester_email: intake.requester_email,\n      photo_url: intake.photo_url,\n      site_note: intake.site_note,\n      trade_code: intake.trade_code,\n      currency_code: intake.currency_code,\n      card_rows: prompt.card_rows,\n      observed_summary: String(parsed?.observed ?? \"\").slice(0, 400),\n      line_items_text: JSON.stringify(lines),\n      line_count: lines.length,\n      subtotal_amount: subtotal,\n      tax_amount: tax,\n      total_amount: total,\n      model_confidence: Number(parsed?.confidence ?? 0) || 0,\n      unmatched_note: flags.join(\" | \") || \"none\",\n      quote_summary: quoteText,\n      approval_status: GATE_STATE,\n      release_mode:\n        \"NOT SENT - no customer-facing send node exists on this canvas\",\n    },\n  },\n];\n"
+      },
+      "id": "ep12-price",
+      "name": "Price it against the rate card",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        340,
+        300
+      ],
+      "notes": "The model picked item_codes and quantities. THIS node supplies every price, from the Data Table. An invented code is dropped and flagged, never priced."
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "REPLACE_ME",
+          "cachedResultName": "ep12_quote_queue"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "quote_ref": "={{ $json.quote_ref }}",
+            "received_at": "={{ $json.received_at }}",
+            "site_ref": "={{ $json.site_ref }}",
+            "requester_name": "={{ $json.requester_name }}",
+            "requester_email": "={{ $json.requester_email }}",
+            "photo_url": "={{ $json.photo_url }}",
+            "site_note": "={{ $json.site_note }}",
+            "observed_summary": "={{ $json.observed_summary }}",
+            "line_items_text": "={{ $json.line_items_text }}",
+            "line_count": "={{ $json.line_count }}",
+            "currency_code": "={{ $json.currency_code }}",
+            "subtotal_amount": "={{ $json.subtotal_amount }}",
+            "tax_amount": "={{ $json.tax_amount }}",
+            "total_amount": "={{ $json.total_amount }}",
+            "model_confidence": "={{ $json.model_confidence }}",
+            "unmatched_note": "={{ $json.unmatched_note }}",
+            "quote_summary": "={{ $json.quote_summary }}",
+            "approval_status": "={{ $json.approval_status }}",
+            "release_mode": "={{ $json.release_mode }}",
+            "decided_at": "",
+            "decided_by": ""
+          },
+          "matchingColumns": [],
+          "schema": []
+        }
+      },
+      "id": "ep12-queue",
+      "name": "Queue the draft for approval",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        560,
+        300
+      ],
+      "notes": "The draft lands in ep12_quote_queue as approval_status = awaiting_human_approval. This table IS the approval inbox."
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ ok: true, quote_ref: $json.quote_ref, approval_status: $json.approval_status, line_count: $json.line_count, currency_code: $json.currency_code, total_amount: $json.total_amount, flags: $json.unmatched_note, release_mode: $json.release_mode, approve_url: $execution.resumeUrl + '?decision=approve', hold_url: $execution.resumeUrl + '?decision=hold', quote_summary: $json.quote_summary }) }}",
+        "options": {}
+      },
+      "id": "ep12-respond",
+      "name": "Reply with the draft + approval links",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        780,
+        300
+      ],
+      "notes": "Hands back the draft AND the two one-click links for the human. $execution.resumeUrl must be read BEFORE the Wait node, which is why this node sits here."
+    },
+    {
+      "parameters": {
+        "resume": "webhook",
+        "options": {}
+      },
+      "id": "ep12-gate",
+      "name": "APPROVAL GATE - wait for a human",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        1000,
+        300
+      ],
+      "webhookId": "ep12-approval-gate",
+      "notes": "THE GATE. The execution stops dead here and stays stopped until a person opens approve_url or hold_url. Nothing downstream can run on its own, on a timer, or on a retry."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "ep12-decision",
+              "leftValue": "={{ ($json.query && $json.query.decision) || ($json.body && $json.body.decision) || 'hold' }}",
+              "rightValue": "approve",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "id": "ep12-decision-if",
+      "name": "Did the human approve it?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1220,
+        300
+      ],
+      "notes": "Fails closed: anything that is not the literal string 'approve' - a blank click, a stray retry, a typo - takes the HOLD branch."
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "REPLACE_ME",
+          "cachedResultName": "ep12_quote_queue"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "quote_ref",
+              "condition": "eq",
+              "keyValue": "={{ $('Price it against the rate card').first().json.quote_ref }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "approval_status": "approved_by_human",
+            "decided_at": "={{ $now.toISO() }}",
+            "decided_by": "={{ ($json.query && $json.query.approver) || 'approval link' }}",
+            "release_mode": "APPROVED BY A HUMAN - this workflow still sends nothing. Sending is your own action, outside this file."
+          },
+          "matchingColumns": [],
+          "schema": []
+        }
+      },
+      "id": "ep12-approved",
+      "name": "Approved - the human said yes (still nothing sent)",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1460,
+        200
+      ],
+      "notes": "TERMINAL. Marks the row approved and the workflow ends. There is no send node here or anywhere on this canvas - sending the approved quote is your own action, taken by you, outside this file."
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "REPLACE_ME",
+          "cachedResultName": "ep12_quote_queue"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "quote_ref",
+              "condition": "eq",
+              "keyValue": "={{ $('Price it against the rate card').first().json.quote_ref }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "approval_status": "held_by_human",
+            "decided_at": "={{ $now.toISO() }}",
+            "decided_by": "={{ ($json.query && $json.query.approver) || 'approval link' }}",
+            "release_mode": "HELD BY A HUMAN - the draft stays in the table and goes nowhere."
+          },
+          "matchingColumns": [],
+          "schema": []
+        }
+      },
+      "id": "ep12-held",
+      "name": "Held - the human said no",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1460,
+        400
+      ],
+      "notes": "TERMINAL. The draft stays in the table for the human to rewrite. A held quote is still a logged job - it is not deleted, and it was never sent."
+    }
+  ],
+  "connections": {
+    "Site photo in": {
+      "main": [
+        [
+          {
+            "node": "Read the photo and the note",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read the photo and the note": {
+      "main": [
+        [
+          {
+            "node": "Load the rate card",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load the rate card": {
+      "main": [
+        [
+          {
+            "node": "Build the vision request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build the vision request": {
+      "main": [
+        [
+          {
+            "node": "Vision model reads the photo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Vision model reads the photo": {
+      "main": [
+        [
+          {
+            "node": "Price it against the rate card",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Price it against the rate card": {
+      "main": [
+        [
+          {
+            "node": "Queue the draft for approval",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Queue the draft for approval": {
+      "main": [
+        [
+          {
+            "node": "Reply with the draft + approval links",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reply with the draft + approval links": {
+      "main": [
+        [
+          {
+            "node": "APPROVAL GATE - wait for a human",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "APPROVAL GATE - wait for a human": {
+      "main": [
+        [
+          {
+            "node": "Did the human approve it?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Did the human approve it?": {
+      "main": [
+        [
+          {
+            "node": "Approved - the human said yes (still nothing sent)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Held - the human said no",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
