@@ -1,0 +1,302 @@
+{
+  "tables": {
+    "ep13_caps": [
+      {
+        "name": "cap_id",
+        "type": "string"
+      },
+      {
+        "name": "kill_switch",
+        "type": "boolean"
+      },
+      {
+        "name": "breaker_tripped",
+        "type": "boolean"
+      },
+      {
+        "name": "max_items_per_run",
+        "type": "number"
+      },
+      {
+        "name": "max_llm_calls_per_run",
+        "type": "number"
+      },
+      {
+        "name": "llm_calls_per_day",
+        "type": "number"
+      },
+      {
+        "name": "llm_calls_today",
+        "type": "number"
+      },
+      {
+        "name": "est_usd_per_call",
+        "type": "number"
+      },
+      {
+        "name": "spend_cap_usd_per_run",
+        "type": "number"
+      },
+      {
+        "name": "auto_approve_max_value",
+        "type": "number"
+      },
+      {
+        "name": "return_window_days",
+        "type": "number"
+      },
+      {
+        "name": "defect_window_days",
+        "type": "number"
+      },
+      {
+        "name": "fraud_human_threshold",
+        "type": "number"
+      },
+      {
+        "name": "fraud_borderline_max",
+        "type": "number"
+      },
+      {
+        "name": "consecutive_errors",
+        "type": "number"
+      },
+      {
+        "name": "error_trip_threshold",
+        "type": "number"
+      },
+      {
+        "name": "last_run_id",
+        "type": "string"
+      },
+      {
+        "name": "last_error",
+        "type": "string"
+      }
+    ],
+    "ep13_ledger": [
+      {
+        "name": "run_id",
+        "type": "string"
+      },
+      {
+        "name": "request_id",
+        "type": "string"
+      },
+      {
+        "name": "order_ref",
+        "type": "string"
+      },
+      {
+        "name": "customer_ref",
+        "type": "string"
+      },
+      {
+        "name": "item_name",
+        "type": "string"
+      },
+      {
+        "name": "refund_value",
+        "type": "number"
+      },
+      {
+        "name": "lane",
+        "type": "string"
+      },
+      {
+        "name": "orchestrator_lane",
+        "type": "string"
+      },
+      {
+        "name": "lane_overridden",
+        "type": "boolean"
+      },
+      {
+        "name": "specialist",
+        "type": "string"
+      },
+      {
+        "name": "specialist_view",
+        "type": "string"
+      },
+      {
+        "name": "fraud_score",
+        "type": "number"
+      },
+      {
+        "name": "fraud_flags",
+        "type": "string"
+      },
+      {
+        "name": "policy_hard_fail",
+        "type": "string"
+      },
+      {
+        "name": "policy_review",
+        "type": "string"
+      },
+      {
+        "name": "disposition",
+        "type": "string"
+      },
+      {
+        "name": "decision",
+        "type": "string"
+      },
+      {
+        "name": "decision_reasons",
+        "type": "string"
+      },
+      {
+        "name": "refund_amount",
+        "type": "number"
+      },
+      {
+        "name": "refund_mode",
+        "type": "string"
+      },
+      {
+        "name": "reply_draft",
+        "type": "string"
+      },
+      {
+        "name": "draft_source",
+        "type": "string"
+      },
+      {
+        "name": "approval_status",
+        "type": "string"
+      }
+    ],
+    "ep13_approval_queue": [
+      {
+        "name": "run_id",
+        "type": "string"
+      },
+      {
+        "name": "request_id",
+        "type": "string"
+      },
+      {
+        "name": "order_ref",
+        "type": "string"
+      },
+      {
+        "name": "customer_ref",
+        "type": "string"
+      },
+      {
+        "name": "item_name",
+        "type": "string"
+      },
+      {
+        "name": "refund_value",
+        "type": "number"
+      },
+      {
+        "name": "lane",
+        "type": "string"
+      },
+      {
+        "name": "orchestrator_lane",
+        "type": "string"
+      },
+      {
+        "name": "lane_overridden",
+        "type": "boolean"
+      },
+      {
+        "name": "specialist",
+        "type": "string"
+      },
+      {
+        "name": "specialist_view",
+        "type": "string"
+      },
+      {
+        "name": "fraud_score",
+        "type": "number"
+      },
+      {
+        "name": "fraud_flags",
+        "type": "string"
+      },
+      {
+        "name": "policy_hard_fail",
+        "type": "string"
+      },
+      {
+        "name": "policy_review",
+        "type": "string"
+      },
+      {
+        "name": "disposition",
+        "type": "string"
+      },
+      {
+        "name": "decision",
+        "type": "string"
+      },
+      {
+        "name": "decision_reasons",
+        "type": "string"
+      },
+      {
+        "name": "refund_amount",
+        "type": "number"
+      },
+      {
+        "name": "refund_mode",
+        "type": "string"
+      },
+      {
+        "name": "reply_draft",
+        "type": "string"
+      },
+      {
+        "name": "draft_source",
+        "type": "string"
+      },
+      {
+        "name": "approval_status",
+        "type": "string"
+      },
+      {
+        "name": "queue_ref",
+        "type": "string"
+      },
+      {
+        "name": "decided_by",
+        "type": "string"
+      },
+      {
+        "name": "decided_at",
+        "type": "string"
+      },
+      {
+        "name": "decision_note",
+        "type": "string"
+      }
+    ]
+  },
+  "ep13_caps_seed_row": {
+    "cap_id": "ep13",
+    "kill_switch": false,
+    "breaker_tripped": false,
+    "max_items_per_run": 24,
+    "max_llm_calls_per_run": 58,
+    "llm_calls_per_day": 200,
+    "llm_calls_today": 0,
+    "est_usd_per_call": 0.0003,
+    "spend_cap_usd_per_run": 0.05,
+    "auto_approve_max_value": 75,
+    "return_window_days": 30,
+    "defect_window_days": 90,
+    "fraud_human_threshold": 30,
+    "fraud_borderline_max": 59,
+    "consecutive_errors": 0,
+    "error_trip_threshold": 3,
+    "last_run_id": "",
+    "last_error": ""
+  }
+}

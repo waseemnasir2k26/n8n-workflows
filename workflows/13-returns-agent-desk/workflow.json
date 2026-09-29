@@ -1,0 +1,1540 @@
+{
+  "name": "EP13 Returns Agent Desk",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "ep13-run-fixture-manual",
+      "name": "Run fixture (manual)",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -2200,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "ep13-return-request",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "ep13-return-request-in",
+      "name": "Return request in",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -2200,
+        500
+      ],
+      "webhookId": "ep13-return-request"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// FIXTURE: 24 synthetic return requests, hand-written for this episode.\n// No real customer, order, email or payment data. Same content as\n// fixture-return-requests.json in the repo folder.\nvar FIXTURE = {\"_disclosure\": \"FIXTURE. 24 synthetic return requests written by hand for this episode. No real customer, order, email address or payment appears here. Every name is a made-up placeholder, every order id is invented, every history figure is invented.\", \"as_of\": \"2026-09-28\", \"requests\": [{\"request_id\": \"R01\", \"order_id\": \"ORD-90101\", \"customer_ref\": \"CUST-A01\", \"account_age_days\": 420, \"delivered_date\": \"2026-09-23\", \"item_sku\": \"TSH-BLK-M\", \"item_name\": \"Cotton t-shirt, black, M\", \"category\": \"apparel\", \"item_value\": 24, \"quantity\": 1, \"final_sale\": false, \"reason_code\": \"size_fit\", \"item_state\": \"unopened\", \"photo_provided\": false, \"requested_outcome\": \"refund\", \"exchange_sku\": null, \"reason_text\": \"Ordered the wrong size, it is still in the bag with tags.\", \"history\": {\"orders_12m\": 6, \"returns_12m\": 1, \"refunds_value_12m\": 30, \"chargebacks_12m\": 0}}, {\"request_id\": \"R02\", \"order_id\": \"ORD-90102\", \"customer_ref\": \"CUST-A02\", \"account_age_days\": 800, \"delivered_date\": \"2026-09-20\", \"item_sku\": \"CASE-P15\", \"item_name\": \"Phone case, clear\", \"category\": \"accessories\", \"item_value\": 18, \"quantity\": 1, \"final_sale\": false, \"reason_code\": \"changed_mind\", \"item_state\": \"unopened\", \"photo_provided\": false, \"requested_outcome\": \"refund\", \"exchange_sku\": null, \"reason_text\": \"Changed my mind, never opened it.\", \"history\": {\"orders_12m\": 9, \"returns_12m\": 0, \"refunds_value_12m\": 0, \"chargebacks_12m\": 0}}, {\"request_id\": \"R03\", \"order_id\": \"ORD-90103\", \"customer_ref\": \"CUST-A03\", \"account_age_days\": 260, \"delivered_date\": \"2026-09-15\", \"item_sku\": \"YOGA-MAT-6\", \"item_name\": \"Yoga mat 6mm\", \"category\": \"fitness\", \"item_value\": 45, \"quantity\": 1, \"final_sale\": false, \"reason_code\": \"changed_mind\", \"item_state\": \"unopened\", \"photo_provided\": false, \"requested_outcome\": \"refund\", \"exchange_sku\": null, \"reason_text\": \"Got one as a gift the same week, this one is still sealed.\", \"history\": {\"orders_12m\": 4, \"returns_12m\": 1, \"refunds_value_12m\": 22, \"chargebacks_12m\": 0}}, {\"request_id\": \"R04\", \"order_id\": \"ORD-90104\", \"customer_ref\": \"CUST-A04\", \"account_age_days\": 1200, \"delivered_date\": \"2026-09-24\", \"item_sku\": \"MUG-SET-4\", \"item_name\": \"Stoneware mug set of 4\", \"category\": \"home\", \"item_value\": 32, \"quantity\": 1, \"final_sale\": false, \"reason_code\": \"changed_mind\", \"item_state\": \"unopened\", \"photo_provided\": false, \"requested_outcome\": \"refund\", \"exchange_sku\": null, \"reason_text\": \"Colour does not match my kitchen after all. Box unopened.\", \"history\": {\"orders_12m\": 11, \"returns_12m\": 1, \"refunds_value_12m\": 40, \"chargebacks_12m\": 0}}, {\"request_id\": \"R05\", \"order_id\": \"ORD-90105\", \"customer_ref\": \"CUST-A05\", \"account_age_days\": 95, \"delivered_date\": \"2026-09-19\", \"item_sku\": \"SCALE-KIT-1\", \"item_name\": \"Digital kitchen scale\", \"category\": \"home\", \"item_value\": 29, \"quantity\": 1, \"final_sale\": false, \"reason_code\": \"changed_mind\", \"item_state\": \"unopened\", \"photo_provided\": false, \"requested_outcome\": \"refund\", \"exchange_sku\": null, \"reason_text\": \"Do not need it any more, still shrink-wrapped.\", \"history\": {\"orders_12m\": 3, \"returns_12m\": 0, \"refunds_value_12m\": 0, \"chargebacks_12m\": 0}}, {\"request_id\": \"R06\", \"order_id\": \"ORD-90106\", \"customer_ref\": \"CUST-B01\", \"account_age_days\": 540, \"delivered_date\": \"2026-09-16\", \"item_sku\": \"BLEND-600\", \"item_name\": \"Countertop blender 600W\", \"category\": \"kitchen_appliance\", \"item_value\": 64, \"quantity\": 1, \"final_sale\": false, \"reason_code\": \"defective\", \"item_state\": \"opened\", \"photo_provided\": true, \"requested_outcome\": \"refund\", \"exchange_sku\": null, \"reason_text\": \"Motor smells burnt and stops after ten seconds. Photo of the base attached.\", \"history\": {\"orders_12m\": 7, \"returns_12m\": 1, \"refunds_value_12m\": 25, \"chargebacks_12m\": 0}}, {\"request_id\": \"R07\", \"order_id\": \"ORD-90107\", \"customer_ref\": \"CUST-B02\", \"account_age_days\": 700, \"delivered_date\": \"2026-09-18\", \"item_sku\": \"JKT-RAIN-M\", \"item_name\": \"Rain jacket, navy, M\", \"category\": \"apparel\", \"item_value\": 89, \"quantity\": 1, \"final_sale\": false, \"reason_code\": \"size_fit\", \"item_state\": \"unopened\", \"photo_provided\": false, \"requested_outcome\": \"exchange\", \"exchange_sku\": \"JKT-RAIN-L\", \"reason_text\": \"Too tight across the shoulders, can I swap for a large?\", \"history\": {\"orders_12m\": 5, \"returns_12m\": 1, \"refunds_value_12m\": 0, \"chargebacks_12m\": 0}}, {\"request_id\": \"R08\", \"order_id\": \"ORD-90108\", \"customer_ref\": \"CUST-B03\", \"account_age_days\": 390, \"delivered_date\": \"2026-09-08\", \"item_sku\": \"HP-NC-700\", \"item_name\": \"Noise-cancelling headphones\", \"category\": \"electronics\", \"item_value\": 149, \"quantity\": 1, \"final_sale\": false, \"reason_code\": \"defective\", \"item_state\": \"opened\", \"photo_provided\": true, \"requested_outcome\": \"refund\", \"exchange_sku\": null, \"reason_text\": \"Left ear cup has no sound. Tried two phones. Photo of the settings screen attached.\", \"history\": {\"orders_12m\": 8, \"returns_12m\": 1, \"refunds_value_12m\": 35, \"chargebacks_12m\": 0}}, {\"request_id\": \"R09\", \"order_id\": \"ORD-90109\", \"customer_ref\": \"CUST-B04\", \"account_age_days\": 610, \"delivered_date\": \"2026-09-25\", \"item_sku\": \"LAMP-DESK-2\", \"item_name\": \"Desk lamp, brass\", \"category\": \"home\", \"item_value\": 58, \"quantity\": 1, \"final_sale\": false, \"reason_code\": \"damaged_in_transit\", \"item_state\": \"damaged_on_arrival\", \"photo_provided\": true, \"requested_outcome\": \"refund\", \"exchange_sku\": null, \"reason_text\": \"Arrived with the shade crushed and the box torn. Photos attached.\", \"history\": {\"orders_12m\": 4, \"returns_12m\": 0, \"refunds_value_12m\": 0, \"chargebacks_12m\": 0}}, {\"request_id\": \"R10\", \"order_id\": \"ORD-90110\", \"customer_ref\": \"CUST-B05\", \"account_age_days\": 330, \"delivered_date\": \"2026-09-21\", \"item_sku\": \"SNK-RUN-42\", \"item_name\": \"Running shoes, size 42\", \"category\": \"footwear\", \"item_value\": 110, \"quantity\": 1, \"final_sale\": false, \"reason_code\": \"wrong_item\", \"item_state\": \"unopened\", \"photo_provided\": true, \"requested_outcome\": \"refund\", \"exchange_sku\": null, \"reason_text\": \"I ordered size 44, the box says 42. Photo of the label attached.\", \"history\": {\"orders_12m\": 6, \"returns_12m\": 1, \"refunds_value_12m\": 60, \"chargebacks_12m\": 0}}, {\"request_id\": \"R11\", \"order_id\": \"ORD-90111\", \"customer_ref\": \"CUST-B06\", \"account_age_days\": 180, \"delivered_date\": \"2026-09-17\", \"item_sku\": \"GRIND-BURR-1\", \"item_name\": \"Burr coffee grinder\", \"category\": \"kitchen_appliance\", \"item_value\": 72, \"quantity\": 1, \"final_sale\": false, \"reason_code\": \"not_as_described\", \"item_state\": \"opened\", \"photo_provided\": false, \"requested_outcome\": \"refund\", \"exchange_sku\": null, \"reason_text\": \"Honestly it works fine, I just found it cheaper somewhere else.\", \"history\": {\"orders_12m\": 5, \"returns_12m\": 2, \"refunds_value_12m\": 80, \"chargebacks_12m\": 0}}, {\"request_id\": \"R12\", \"order_id\": \"ORD-90112\", \"customer_ref\": \"CUST-C01\", \"account_age_days\": 450, \"delivered_date\": \"2026-09-14\", \"item_sku\": \"DRESS-SALE-S\", \"item_name\": \"Summer dress, clearance\", \"category\": \"apparel\", \"item_value\": 60, \"quantity\": 1, \"final_sale\": true, \"reason_code\": \"changed_mind\", \"item_state\": \"unopened\", \"photo_provided\": false, \"requested_outcome\": \"refund\", \"exchange_sku\": null, \"reason_text\": \"Not my style after all.\", \"history\": {\"orders_12m\": 5, \"returns_12m\": 1, \"refunds_value_12m\": 40, \"chargebacks_12m\": 0}}, {\"request_id\": \"R13\", \"order_id\": \"ORD-90113\", \"customer_ref\": \"CUST-C02\", \"account_age_days\": 900, \"delivered_date\": \"2026-08-18\", \"item_sku\": \"BAG-DAY-20\", \"item_name\": \"Daypack 20L\", \"category\": \"bags\", \"item_value\": 55, \"quantity\": 1, \"final_sale\": false, \"reason_code\": \"changed_mind\", \"item_state\": \"unopened\", \"photo_provided\": false, \"requested_outcome\": \"refund\", \"exchange_sku\": null, \"reason_text\": \"Forgot to send this back, never used it.\", \"history\": {\"orders_12m\": 6, \"returns_12m\": 0, \"refunds_value_12m\": 0, \"chargebacks_12m\": 0}}, {\"request_id\": \"R14\", \"order_id\": \"ORD-90114\", \"customer_ref\": \"CUST-C03\", \"account_age_days\": 300, \"delivered_date\": \"2026-09-19\", \"item_sku\": \"LIP-SET-3\", \"item_name\": \"Lipstick set of 3\", \"category\": \"beauty\", \"item_value\": 38, \"quantity\": 1, \"final_sale\": false, \"reason_code\": \"changed_mind\", \"item_state\": \"opened\", \"photo_provided\": false, \"requested_outcome\": \"refund\", \"exchange_sku\": null, \"reason_text\": \"Tried them, the shades are not for me.\", \"history\": {\"orders_12m\": 4, \"returns_12m\": 1, \"refunds_value_12m\": 20, \"chargebacks_12m\": 0}}, {\"request_id\": \"R15\", \"order_id\": \"ORD-90115\", \"customer_ref\": \"CUST-C04\", \"account_age_days\": 1500, \"delivered_date\": \"2026-08-04\", \"item_sku\": \"WATCH-FIT-2\", \"item_name\": \"Fitness smartwatch\", \"category\": \"electronics\", \"item_value\": 199, \"quantity\": 1, \"final_sale\": false, \"reason_code\": \"defective\", \"item_state\": \"opened\", \"photo_provided\": true, \"requested_outcome\": \"refund\", \"exchange_sku\": null, \"reason_text\": \"Stopped charging last week. Photo of the dead screen on the charger attached.\", \"history\": {\"orders_12m\": 10, \"returns_12m\": 1, \"refunds_value_12m\": 45, \"chargebacks_12m\": 0}}, {\"request_id\": \"R16\", \"order_id\": \"ORD-90116\", \"customer_ref\": \"CUST-C05\", \"account_age_days\": 520, \"delivered_date\": \"2026-09-22\", \"item_sku\": \"COAT-WOOL-M\", \"item_name\": \"Wool coat, clearance\", \"category\": \"apparel\", \"item_value\": 130, \"quantity\": 1, \"final_sale\": true, \"reason_code\": \"wrong_item\", \"item_state\": \"unopened\", \"photo_provided\": true, \"requested_outcome\": \"refund\", \"exchange_sku\": null, \"reason_text\": \"I ordered the camel colour, a grey one arrived. Photo of the tag attached.\", \"history\": {\"orders_12m\": 3, \"returns_12m\": 0, \"refunds_value_12m\": 0, \"chargebacks_12m\": 0}}, {\"request_id\": \"R17\", \"order_id\": \"ORD-90117\", \"customer_ref\": \"CUST-C06\", \"account_age_days\": 640, \"delivered_date\": \"2026-09-20\", \"item_sku\": \"TAB-11-128\", \"item_name\": \"11-inch tablet 128GB\", \"category\": \"electronics\", \"item_value\": 329, \"quantity\": 1, \"final_sale\": false, \"reason_code\": \"changed_mind\", \"item_state\": \"opened\", \"photo_provided\": false, \"requested_outcome\": \"refund\", \"exchange_sku\": null, \"reason_text\": \"Set it up and decided a laptop suits me better.\", \"history\": {\"orders_12m\": 4, \"returns_12m\": 0, \"refunds_value_12m\": 0, \"chargebacks_12m\": 0}}, {\"request_id\": \"R18\", \"order_id\": \"ORD-90118\", \"customer_ref\": \"CUST-C07\", \"account_age_days\": 210, \"delivered_date\": \"2026-09-10\", \"item_sku\": \"SHOE-LEA-41\", \"item_name\": \"Leather shoes, size 41\", \"category\": \"footwear\", \"item_value\": 95, \"quantity\": 1, \"final_sale\": false, \"reason_code\": \"changed_mind\", \"item_state\": \"used\", \"photo_provided\": false, \"requested_outcome\": \"refund\", \"exchange_sku\": null, \"reason_text\": \"Wore them to two events, they are not comfortable.\", \"history\": {\"orders_12m\": 5, \"returns_12m\": 1, \"refunds_value_12m\": 50, \"chargebacks_12m\": 0}}, {\"request_id\": \"R19\", \"order_id\": \"ORD-90119\", \"customer_ref\": \"CUST-D01\", \"account_age_days\": 600, \"delivered_date\": \"2026-09-20\", \"item_sku\": \"JEANS-SLIM-32\", \"item_name\": \"Slim jeans, 32\", \"category\": \"apparel\", \"item_value\": 70, \"quantity\": 1, \"final_sale\": false, \"reason_code\": \"size_fit\", \"item_state\": \"unopened\", \"photo_provided\": false, \"requested_outcome\": \"refund\", \"exchange_sku\": null, \"reason_text\": \"Did not fit.\", \"history\": {\"orders_12m\": 12, \"returns_12m\": 9, \"refunds_value_12m\": 610, \"chargebacks_12m\": 0}}, {\"request_id\": \"R20\", \"order_id\": \"ORD-90120\", \"customer_ref\": \"CUST-D02\", \"account_age_days\": 380, \"delivered_date\": \"2026-09-18\", \"item_sku\": \"SPK-BT-5\", \"item_name\": \"Bluetooth speaker\", \"category\": \"electronics\", \"item_value\": 68, \"quantity\": 1, \"final_sale\": false, \"reason_code\": \"defective\", \"item_state\": \"opened\", \"photo_provided\": true, \"requested_outcome\": \"refund\", \"exchange_sku\": null, \"reason_text\": \"Crackles at any volume. Photo attached.\", \"history\": {\"orders_12m\": 9, \"returns_12m\": 3, \"refunds_value_12m\": 1400, \"chargebacks_12m\": 2}}, {\"request_id\": \"R21\", \"order_id\": \"ORD-90121\", \"customer_ref\": \"CUST-D03\", \"account_age_days\": 12, \"delivered_date\": \"2026-09-24\", \"item_sku\": \"TV-43-4K\", \"item_name\": \"43-inch 4K TV\", \"category\": \"electronics\", \"item_value\": 420, \"quantity\": 1, \"final_sale\": false, \"reason_code\": \"damaged_in_transit\", \"item_state\": \"damaged_on_arrival\", \"photo_provided\": false, \"requested_outcome\": \"refund\", \"exchange_sku\": null, \"reason_text\": \"Screen cracked when I opened the box. I already threw the box away.\", \"history\": {\"orders_12m\": 1, \"returns_12m\": 0, \"refunds_value_12m\": 0, \"chargebacks_12m\": 0}}, {\"request_id\": \"R22\", \"order_id\": \"ORD-90122\", \"customer_ref\": \"CUST-D04\", \"account_age_days\": 700, \"delivered_date\": \"2026-09-03\", \"item_sku\": \"GOWN-EVE-M\", \"item_name\": \"Evening gown\", \"category\": \"apparel\", \"item_value\": 240, \"quantity\": 1, \"final_sale\": false, \"reason_code\": \"size_fit\", \"item_state\": \"worn_tags_removed\", \"photo_provided\": false, \"requested_outcome\": \"refund\", \"exchange_sku\": null, \"reason_text\": \"Did not fit well.\", \"history\": {\"orders_12m\": 10, \"returns_12m\": 6, \"refunds_value_12m\": 880, \"chargebacks_12m\": 0}}, {\"request_id\": \"R23\", \"order_id\": \"ORD-90123\", \"customer_ref\": \"CUST-D05\", \"account_age_days\": 250, \"delivered_date\": \"2026-09-21\", \"item_sku\": \"CAM-ACT-4\", \"item_name\": \"Action camera\", \"category\": \"electronics\", \"item_value\": 279, \"quantity\": 1, \"final_sale\": false, \"reason_code\": \"not_as_described\", \"item_state\": \"opened\", \"photo_provided\": false, \"requested_outcome\": \"refund\", \"exchange_sku\": null, \"reason_text\": \"Not what the listing said.\", \"history\": {\"orders_12m\": 14, \"returns_12m\": 10, \"refunds_value_12m\": 2300, \"chargebacks_12m\": 1}}, {\"request_id\": \"R24\", \"order_id\": \"ORD-90124\", \"customer_ref\": \"CUST-D06\", \"account_age_days\": 20, \"delivered_date\": \"2026-09-22\", \"item_sku\": \"VAC-STICK-2\", \"item_name\": \"Cordless stick vacuum\", \"category\": \"home_appliance\", \"item_value\": 210, \"quantity\": 1, \"final_sale\": false, \"reason_code\": \"defective\", \"item_state\": \"opened\", \"photo_provided\": true, \"requested_outcome\": \"refund\", \"exchange_sku\": null, \"reason_text\": \"Battery will not hold a charge past two minutes. Video of it cutting out attached.\", \"history\": {\"orders_12m\": 2, \"returns_12m\": 0, \"refunds_value_12m\": 0, \"chargebacks_12m\": 0}}]};\nreturn FIXTURE.requests.map(function (r) {\n  var o = Object.assign({}, r);\n  o.as_of = FIXTURE.as_of;\n  o.source = 'fixture';\n  return { json: o };\n});\n"
+      },
+      "id": "ep13-load-fixture-24-synthetic",
+      "name": "Load fixture (24 synthetic)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1980,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// Accepts either a fixture item or a webhook item ({ body: request } or\n// { body: { requests: [...] } }). Drops anything missing a required field.\nvar REQUIRED = ['request_id', 'order_id', 'item_name', 'item_value', 'reason_code', 'item_state', 'delivered_date'];\nvar out = [];\nvar dropped = 0;\nfunction num(v, d) { var n = Number(v); return isFinite(n) ? n : d; }\n$input.all().forEach(function (it) {\n  var j = it.json || {};\n  var list;\n  if (j.body && typeof j.body === 'object') {\n    list = Array.isArray(j.body.requests) ? j.body.requests : [j.body];\n  } else {\n    list = [j];\n  }\n  list.forEach(function (r) {\n    var ok = REQUIRED.every(function (k) { return r[k] !== undefined && r[k] !== null && r[k] !== ''; });\n    if (!ok) { dropped++; return; }\n    var asOf = String(r.as_of || j.as_of || new Date().toISOString().slice(0, 10));\n    var days = Math.round((Date.parse(asOf + 'T00:00:00Z') - Date.parse(String(r.delivered_date) + 'T00:00:00Z')) / 86400000);\n    var h = r.history || {};\n    out.push({ json: {\n      request_id: String(r.request_id),\n      order_ref: String(r.order_id),\n      customer_ref: String(r.customer_ref || 'unknown'),\n      account_age_days: num(r.account_age_days, 0),\n      as_of: asOf,\n      delivered_date: String(r.delivered_date),\n      days_since_delivery: isFinite(days) ? days : 9999,\n      item_sku: String(r.item_sku || ''),\n      item_name: String(r.item_name),\n      category: String(r.category || 'other').toLowerCase(),\n      item_value: num(r.item_value, 0),\n      quantity: Math.max(1, num(r.quantity, 1)),\n      final_sale: r.final_sale === true,\n      reason_code: String(r.reason_code).toLowerCase(),\n      item_state: String(r.item_state).toLowerCase(),\n      photo_provided: r.photo_provided === true,\n      requested_outcome: String(r.requested_outcome || 'refund').toLowerCase(),\n      exchange_sku: r.exchange_sku ? String(r.exchange_sku) : '',\n      reason_text: String(r.reason_text || '').slice(0, 600),\n      orders_12m: num(h.orders_12m, 0),\n      returns_12m: num(h.returns_12m, 0),\n      refunds_value_12m: num(h.refunds_value_12m, 0),\n      chargebacks_12m: num(h.chargebacks_12m, 0),\n      source: String(r.source || j.source || 'webhook'),\n      dropped_at_normalize: 0\n    } });\n  });\n});\nif (out.length) out[0].json.dropped_at_normalize = dropped;\nreturn out;\n"
+      },
+      "id": "ep13-normalize-request",
+      "name": "Normalize request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1760,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "REPLACE_ME",
+          "cachedResultName": "ep13_caps"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "cap_id",
+              "condition": "eq",
+              "keyValue": "ep13"
+            }
+          ]
+        },
+        "returnAll": true
+      },
+      "id": "ep13-load-caps",
+      "name": "Load caps",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        -1540,
+        400
+      ],
+      "executeOnce": true,
+      "alwaysOutputData": false
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// Caps BEFORE any model call. Throws (hard stop) rather than skipping.\nvar caps = $('Load caps').first().json;\nif (!caps || caps.cap_id !== 'ep13') throw new Error('ep13_caps row missing - refusing to run');\nif (caps.kill_switch === true) throw new Error('KILL SWITCH ON (ep13_caps.kill_switch = true) - nothing ran');\nif (caps.breaker_tripped === true) throw new Error('BREAKER TRIPPED (ep13_caps.breaker_tripped = true) - reset it by hand');\nvar maxCalls = Number(caps.max_llm_calls_per_run || 0);\nvar dayLeft = Number(caps.llm_calls_per_day || 0) - Number(caps.llm_calls_today || 0);\nvar budget = Math.min(maxCalls, dayLeft);\nvar perCall = Number(caps.est_usd_per_call || 0);\nvar spendCap = Number(caps.spend_cap_usd_per_run || 0);\nif (budget * perCall > spendCap) throw new Error('SPEND CAP: ' + budget + ' calls x ' + perCall + ' USD > ' + spendCap + ' USD per run');\nvar items = $('Normalize request').all();\n// Reserve 2 calls per request (orchestrator + at most one specialist).\n// Reply drafts only get what is left after that (see Draft budget check).\nvar byBudget = Math.floor(budget / 2);\nvar take = Math.min(items.length, Number(caps.max_items_per_run || 0), byBudget);\nif (take <= 0) throw new Error('LLM budget exhausted for today (' + dayLeft + ' left) - nothing ran');\nvar runId = 'ep13-' + $execution.id;\nvar deferred = items.length - take;\nreturn items.slice(0, take).map(function (i) {\n  return { json: Object.assign({}, i.json, { run_id: runId, llm_budget_run: budget, deferred_by_cap: deferred }) };\n});\n"
+      },
+      "id": "ep13-caps-gate",
+      "name": "Caps gate",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1320,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// RULES FIRST. Deterministic policy rules (P*) and fraud rules (F*) run\n// before any model sees the request. The model can add scrutiny later,\n// never remove it.\nvar caps = $('Load caps').first().json;\nvar W = Number(caps.return_window_days || 30);\nvar DW = Number(caps.defect_window_days || 90);\nvar MAXV = Number(caps.auto_approve_max_value || 75);\nvar HYGIENE = ['beauty', 'swimwear', 'underwear', 'earbuds'];\nvar DEFECTISH = ['defective', 'wrong_item', 'damaged_in_transit', 'not_as_described'];\nvar CHANGE = ['changed_mind', 'size_fit'];\n// Illustrative stock sheet for exchange checks (swap for your inventory lookup).\nvar STOCK = { 'JKT-RAIN-L': 7, 'JKT-RAIN-S': 0, 'SNK-RUN-44': 3 };\nfunction has(arr, v) { return arr.indexOf(v) !== -1; }\nreturn $input.all().map(function (it) {\n  var r = it.json;\n  var d = r.days_since_delivery;\n  var value = r.item_value * r.quantity;\n  var hard = '';\n  var review = '';\n  if (!has(DEFECTISH, r.reason_code) && d > W) hard = 'P1 outside the ' + W + '-day return window (' + d + ' days since delivery)';\n  if (!hard && has(DEFECTISH, r.reason_code) && d > DW) hard = 'P1b outside the ' + DW + '-day defect window (' + d + ' days)';\n  if (!hard && r.final_sale && !has(['wrong_item', 'damaged_in_transit'], r.reason_code)) hard = 'P2 final-sale item: returns only for a wrong or damaged item';\n  if (!hard && has(HYGIENE, r.category) && r.item_state !== 'unopened' && has(CHANGE, r.reason_code)) hard = 'P3 hygiene item opened on a change-of-mind return';\n  if (!hard && has(['used', 'worn_tags_removed'], r.item_state) && has(CHANGE, r.reason_code)) hard = 'P4 used or worn item on a change-of-mind or fit return';\n  if (!hard) {\n    if (has(DEFECTISH, r.reason_code) && d > W) review = 'P1c defect claim after ' + W + ' days, needs inspection';\n    else if (r.final_sale) review = 'P2b final-sale item with a wrong or damaged claim';\n    else if (r.category === 'electronics' && r.item_state === 'opened' && r.reason_code === 'changed_mind') review = 'P4b opened electronics on change of mind';\n  }\n  var score = 0;\n  var flags = [];\n  if (r.returns_12m >= 5 && r.orders_12m > 0 && r.returns_12m / r.orders_12m >= 0.5) { score += 40; flags.push('F1_SERIAL_RETURNER'); }\n  if (r.refunds_value_12m >= 1000) { score += 20; flags.push('F2_HIGH_REFUND_VALUE_12M'); }\n  if (r.chargebacks_12m >= 1) { score += 30; flags.push('F3_CHARGEBACK_HISTORY'); }\n  if (r.item_state === 'worn_tags_removed' && r.category === 'apparel') { score += 20; flags.push('F4_WARDROBING_SIGNAL'); }\n  if (value >= 150 && has(['defective', 'damaged_in_transit'], r.reason_code) && !r.photo_provided) { score += 25; flags.push('F5_NO_PHOTO_HIGH_VALUE'); }\n  if (r.account_age_days < 30 && value >= 200) { score += 15; flags.push('F6_NEW_ACCOUNT_HIGH_VALUE'); }\n  score = Math.min(100, score);\n  var stockQty = r.exchange_sku ? Number(STOCK[r.exchange_sku] || 0) : 0;\n  var fastOk = !hard && !review && score < 15 && value <= MAXV && has(CHANGE, r.reason_code) && r.item_state === 'unopened' && r.requested_outcome === 'refund';\n  var facts = {\n    request_id: r.request_id, item: r.item_name, category: r.category, value: value,\n    days_since_delivery: d, final_sale: r.final_sale, reason_code: r.reason_code,\n    item_state: r.item_state, photo_provided: r.photo_provided, requested_outcome: r.requested_outcome,\n    customer_text: r.reason_text, policy_hard_fail: hard || null, policy_review: review || null,\n    fraud_rule_score: score, fraud_flags: flags, fast_track_eligible: fastOk\n  };\n  var prompt = [\n    'You are the ORCHESTRATOR of a returns desk. Classify this return request and pick ONE specialist lane.',\n    'Lanes: policy = ONLY when policy_hard_fail or policy_review is set, or the customer text contradicts the reason_code;',\n    'fraud = fraud_rule_score is 30 or more, or you see abuse signals in the text;',\n    'inventory = a valid return (no policy_hard_fail, no policy_review) where the goods need a restock / refurbish / write-off / exchange decision: defective, damaged, wrong item, opened, or an exchange request;',\n    'fast_track = clean, unopened, low value (only allowed when fast_track_eligible is true).',\n    'Also say whether the customer text actually supports the reason_code they picked.',\n    'Request and rule-engine facts (JSON): ' + JSON.stringify(facts),\n    'Reply with ONLY raw JSON: {\"reason_category\":\"defective|wrong_item|damaged_in_transit|not_as_described|changed_mind|size_fit|other\",\"item_state_read\":\"short phrase\",\"lane\":\"policy|fraud|inventory|fast_track\",\"text_matches_reason_code\":true,\"confidence\":0.0,\"note\":\"max 20 words\"}'\n  ].join(' ');\n  return { json: Object.assign({}, r, {\n    refund_value: value,\n    policy_hard_fail: hard, policy_review: review,\n    fraud_score: score, fraud_flags: flags.join(','),\n    exchange_in_stock: stockQty > 0,\n    fast_track_eligible: fastOk,\n    prompt_orchestrator: prompt\n  }) };\n});\n"
+      },
+      "id": "ep13-rules-precheck",
+      "name": "Rules precheck",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1100,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.prompt_orchestrator }}",
+        "hasOutputParser": false,
+        "options": {
+          "systemMessage": "You route e-commerce return requests. You never approve or refund anything. Reply with raw JSON only, no markdown."
+        }
+      },
+      "id": "ep13-orchestrator-agent",
+      "name": "Orchestrator agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.9,
+      "position": [
+        -880,
+        400
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 20000,
+      "onError": "stopWorkflow"
+    },
+    {
+      "parameters": {
+        "model": "openai/gpt-oss-20b",
+        "options": {
+          "temperature": 0.2
+        }
+      },
+      "id": "ep13-openrouter-gpt-oss-20b",
+      "name": "OpenRouter gpt-oss-20b",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1,
+      "position": [
+        -200,
+        1200
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "REPLACE_ME",
+          "name": "OpenRouter (REPLACE_ME)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "language": "javaScript",
+        "jsCode": "function parseJson(raw) {\n  var s = String(raw || '');\n  var a = s.indexOf('{');\n  var b = s.lastIndexOf('}');\n  if (a === -1 || b <= a) return null;\n  try { return JSON.parse(s.slice(a, b + 1)); } catch (e) { return null; }\n}\nfunction clampConf(v) {\n  var n = Number(v);\n  if (!isFinite(n)) return null;\n  if (n > 1 && n <= 100) n = n / 100;\n  return Math.max(0, Math.min(1, n));\n}\n\n// Runs once per item after the Orchestrator agent. The model picks a lane;\n// the rules can force a stricter lane but the model can never pick a\n// laxer one than the rules allow.\nvar caps = $('Load caps').first().json;\nvar base = $('Rules precheck').item.json;\nvar o = parseJson($json.output);\nvar LANES = ['policy', 'fraud', 'inventory', 'fast_track'];\nvar llmLane = (o && LANES.indexOf(o.lane) !== -1) ? o.lane : '';\nvar lane = llmLane || 'inventory';\nvar overrides = [];\nvar mismatch = !!(o && o.text_matches_reason_code === false);\nvar thr = Number(caps.fraud_human_threshold || 30);\nif (base.fraud_score >= thr) {\n  if (lane !== 'fraud') overrides.push('fraud rules forced the fraud lane');\n  lane = 'fraud';\n} else if (base.policy_hard_fail || base.policy_review) {\n  if (lane !== 'policy') overrides.push('policy rules forced the policy lane');\n  lane = 'policy';\n} else if (mismatch && lane !== 'fraud') {\n  if (lane !== 'policy') overrides.push('customer text contradicts the reason code');\n  lane = 'policy';\n} else if (lane === 'fast_track' && !base.fast_track_eligible) {\n  overrides.push('not fast-track eligible, sent to inventory');\n  lane = 'inventory';\n} else if (lane === 'policy') {\n  // No policy rule fired and the text matches the code: there is no policy\n  // question for the Policy agent to rule on. The goods still need a decision.\n  overrides.push('no policy question, sent to inventory');\n  lane = 'inventory';\n}\nvar facts = JSON.stringify({\n  request_id: base.request_id, item: base.item_name, sku: base.item_sku, category: base.category,\n  value: base.refund_value, days_since_delivery: base.days_since_delivery, final_sale: base.final_sale,\n  reason_code: base.reason_code, item_state: base.item_state, photo_provided: base.photo_provided,\n  requested_outcome: base.requested_outcome, exchange_sku: base.exchange_sku || null,\n  exchange_in_stock: base.exchange_in_stock, customer_text: base.reason_text,\n  policy_hard_fail: base.policy_hard_fail || null, policy_review: base.policy_review || null,\n  reason_text_contradicts_code: mismatch,\n  fraud_rule_score: base.fraud_score, fraud_flags: base.fraud_flags,\n  history: { orders_12m: base.orders_12m, returns_12m: base.returns_12m, refunds_value_12m: base.refunds_value_12m, chargebacks_12m: base.chargebacks_12m, account_age_days: base.account_age_days }\n});\nvar p = '';\nif (lane === 'policy') {\n  p = ['You are the POLICY agent of a returns desk. Policy: P1 change-of-mind returns within ' + (caps.return_window_days || 30) + ' days; P1b defect claims within ' + (caps.defect_window_days || 90) + ' days;',\n    'P2 final-sale items only for wrong or damaged items; P3 opened hygiene items (beauty, swimwear, underwear, earbuds) not returnable on change of mind; P4 used or worn items not returnable on change of mind or fit.',\n    'The rule engine result is binding: if policy_hard_fail is set you cannot approve, you explain which rule applies. If you disagree, say so in rationale.',\n    'Request (JSON): ' + facts,\n    'Reply with ONLY raw JSON: {\"ruling\":\"uphold_rejection|needs_human|eligible\",\"rule_cited\":\"P1|P1b|P1c|P2|P2b|P3|P4|P4b|none\",\"rationale\":\"max 30 words\",\"confidence\":0.0}'].join(' ');\n} else if (lane === 'fraud') {\n  p = ['You are the FRAUD AND ABUSE reviewer of a returns desk. Deterministic rules already scored this request (fraud_rule_score, fraud_flags). You give a second opinion.',\n    'You cannot lower the rule score and flagged cases always go to a human; your job is to say what the human should check.',\n    'Request (JSON): ' + facts,\n    'Reply with ONLY raw JSON: {\"risk\":\"low|medium|high\",\"extra_signals\":[\"short phrases\"],\"what_to_check\":\"max 25 words\",\"confidence\":0.0}'].join(' ');\n} else if (lane === 'inventory') {\n  p = ['You are the INVENTORY agent of a returns desk. Decide what happens to the returned goods: restock (resellable as new), refurbish (repair or open-box), write_off (unsellable),',\n    'exchange (ONLY if requested_outcome is exchange AND exchange_in_stock is true), or inspect (cannot tell yet). Also say if a human should look before money moves.',\n    'Request (JSON): ' + facts,\n    'Reply with ONLY raw JSON: {\"disposition\":\"restock|refurbish|write_off|exchange|inspect\",\"needs_human\":false,\"rationale\":\"max 25 words\",\"confidence\":0.0}'].join(' ');\n}\nreturn { json: Object.assign({}, base, {\n  orchestrator_lane: llmLane || 'unparsed',\n  orchestrator_reason: (o && o.reason_category) || '',\n  orchestrator_confidence: o ? clampConf(o.confidence) : null,\n  orchestrator_note: (o && o.note ? String(o.note) : '').slice(0, 200),\n  orchestrator_parse_ok: !!o,\n  reason_mismatch: mismatch,\n  lane: lane,\n  lane_overridden: overrides.length > 0,\n  lane_override_reason: overrides.join('; '),\n  prompt_specialist: p,\n  specialist: lane === 'fast_track' ? 'rules_only' : '',\n  specialist_view: '',\n  specialist_confidence: null,\n  needs_human: false,\n  disposition: lane === 'fast_track' ? 'restock' : ''\n}) };\n"
+      },
+      "id": "ep13-parse-and-lane-guard",
+      "name": "Parse + lane guard",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -600,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.lane }}",
+                    "rightValue": "policy",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "policy"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.lane }}",
+                    "rightValue": "fraud",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "fraud"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.lane }}",
+                    "rightValue": "inventory",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "inventory"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.lane }}",
+                    "rightValue": "fast_track",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "fast_track"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "ep13-route-to-specialist",
+      "name": "Route to specialist",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        -380,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.prompt_specialist }}",
+        "hasOutputParser": false,
+        "options": {
+          "systemMessage": "You are a returns policy specialist. You explain rulings; the rule engine is binding. Raw JSON only."
+        }
+      },
+      "id": "ep13-policy-agent",
+      "name": "Policy agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.9,
+      "position": [
+        -100,
+        -200
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 20000,
+      "onError": "stopWorkflow"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "language": "javaScript",
+        "jsCode": "function parseJson(raw) {\n  var s = String(raw || '');\n  var a = s.indexOf('{');\n  var b = s.lastIndexOf('}');\n  if (a === -1 || b <= a) return null;\n  try { return JSON.parse(s.slice(a, b + 1)); } catch (e) { return null; }\n}\nfunction clampConf(v) {\n  var n = Number(v);\n  if (!isFinite(n)) return null;\n  if (n > 1 && n <= 100) n = n / 100;\n  return Math.max(0, Math.min(1, n));\n}\n\nvar base = $('Parse + lane guard').item.json;\nvar o = parseJson($json.output);\nvar ruling = (o && ['uphold_rejection', 'needs_human', 'eligible'].indexOf(o.ruling) !== -1) ? o.ruling : 'needs_human';\nvar disagreed = false;\nif (base.policy_hard_fail && ruling !== 'uphold_rejection') { disagreed = true; ruling = 'uphold_rejection'; }\nif (base.policy_review && ruling === 'eligible') ruling = 'needs_human';\nreturn { json: Object.assign({}, base, {\n  specialist: 'policy_agent',\n  specialist_view: ruling + ' | ' + ((o && o.rule_cited) || '?') + ' | ' + String((o && o.rationale) || 'unparsed').slice(0, 240),\n  specialist_confidence: o ? clampConf(o.confidence) : null,\n  specialist_parse_ok: !!o,\n  agent_disagreed_with_rule: disagreed,\n  needs_human: ruling === 'needs_human',\n  disposition: base.policy_hard_fail ? 'none' : 'inspect'\n}) };\n"
+      },
+      "id": "ep13-parse-policy-ruling",
+      "name": "Parse policy ruling",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        200,
+        -200
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.fraud_score }}",
+              "rightValue": "={{ $('Load caps').first().json.fraud_human_threshold }}",
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              }
+            },
+            {
+              "leftValue": "={{ $json.fraud_score }}",
+              "rightValue": "={{ $('Load caps').first().json.fraud_borderline_max }}",
+              "operator": {
+                "type": "number",
+                "operation": "lte"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "ep13-borderline-fraud-score?",
+      "name": "Borderline fraud score?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -100,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.prompt_specialist }}",
+        "hasOutputParser": false,
+        "options": {
+          "systemMessage": "You are a returns abuse reviewer. You cannot clear a flagged case; you tell the human what to check. Raw JSON only."
+        }
+      },
+      "id": "ep13-fraud-agent-second-opinion",
+      "name": "Fraud agent (second opinion)",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.9,
+      "position": [
+        140,
+        40
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 20000,
+      "onError": "stopWorkflow"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "language": "javaScript",
+        "jsCode": "function parseJson(raw) {\n  var s = String(raw || '');\n  var a = s.indexOf('{');\n  var b = s.lastIndexOf('}');\n  if (a === -1 || b <= a) return null;\n  try { return JSON.parse(s.slice(a, b + 1)); } catch (e) { return null; }\n}\nfunction clampConf(v) {\n  var n = Number(v);\n  if (!isFinite(n)) return null;\n  if (n > 1 && n <= 100) n = n / 100;\n  return Math.max(0, Math.min(1, n));\n}\n\nvar base = $('Parse + lane guard').item.json;\nvar o = parseJson($json.output);\nvar extra = (o && Array.isArray(o.extra_signals)) ? o.extra_signals.slice(0, 4).map(function (s) { return String(s).slice(0, 60); }) : [];\nreturn { json: Object.assign({}, base, {\n  specialist: 'fraud_agent',\n  specialist_view: ((o && o.risk) || 'unparsed') + ' | check: ' + String((o && o.what_to_check) || '').slice(0, 200) + (extra.length ? ' | ' + extra.join('; ') : ''),\n  specialist_confidence: o ? clampConf(o.confidence) : null,\n  specialist_parse_ok: !!o,\n  needs_human: true,\n  disposition: 'inspect'\n}) };\n"
+      },
+      "id": "ep13-parse-fraud-opinion",
+      "name": "Parse fraud opinion",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        40
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.prompt_specialist }}",
+        "hasOutputParser": false,
+        "options": {
+          "systemMessage": "You are a returns inventory specialist deciding restock, refurbish, write-off, exchange or inspect. Raw JSON only."
+        }
+      },
+      "id": "ep13-inventory-agent",
+      "name": "Inventory agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.9,
+      "position": [
+        -100,
+        420
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 20000,
+      "onError": "stopWorkflow"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "language": "javaScript",
+        "jsCode": "function parseJson(raw) {\n  var s = String(raw || '');\n  var a = s.indexOf('{');\n  var b = s.lastIndexOf('}');\n  if (a === -1 || b <= a) return null;\n  try { return JSON.parse(s.slice(a, b + 1)); } catch (e) { return null; }\n}\nfunction clampConf(v) {\n  var n = Number(v);\n  if (!isFinite(n)) return null;\n  if (n > 1 && n <= 100) n = n / 100;\n  return Math.max(0, Math.min(1, n));\n}\n\nvar caps = $('Load caps').first().json;\nvar base = $('Parse + lane guard').item.json;\nvar o = parseJson($json.output);\nvar ALLOWED = ['restock', 'refurbish', 'write_off', 'exchange', 'inspect'];\nvar disp = (o && ALLOWED.indexOf(o.disposition) !== -1) ? o.disposition : 'inspect';\nvar guard = '';\nif (disp === 'exchange' && !(base.requested_outcome === 'exchange' && base.exchange_in_stock)) { disp = 'inspect'; guard = 'exchange refused: not requested or not in stock'; }\nif (disp !== 'exchange' && base.requested_outcome === 'exchange' && base.exchange_in_stock && !(o && o.needs_human)) { guard = 'customer asked for an in-stock exchange'; disp = 'exchange'; }\nreturn { json: Object.assign({}, base, {\n  specialist: 'inventory_agent',\n  specialist_view: disp + ' | ' + String((o && o.rationale) || 'unparsed').slice(0, 220) + (guard ? ' | guard: ' + guard : ''),\n  specialist_confidence: o ? clampConf(o.confidence) : null,\n  specialist_parse_ok: !!o,\n  needs_human: !!(o && o.needs_human === true) || disp === 'inspect',\n  disposition: disp\n}) };\n"
+      },
+      "id": "ep13-parse-disposition",
+      "name": "Parse disposition",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        200,
+        420
+      ]
+    },
+    {
+      "parameters": {
+        "numberInputs": 5
+      },
+      "id": "ep13-merge-lanes",
+      "name": "Merge lanes",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        700,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// Final routing. Deterministic. Order matters: a hard policy fail rejects,\n// any fraud flag or open question goes to a human, only clean low-value\n// cases auto-approve.\nvar caps = $('Load caps').first().json;\nvar MAXV = Number(caps.auto_approve_max_value || 75);\nvar thr = Number(caps.fraud_human_threshold || 30);\nreturn $input.all().map(function (it, idx) {\n  var r = it.json;\n  var refund = r.disposition === 'exchange' ? 0 : r.refund_value;\n  var decision = 'auto_approve';\n  var reasons = [];\n  if (r.policy_hard_fail) { decision = 'reject'; reasons.push(r.policy_hard_fail); }\n  else {\n    if (r.fraud_score >= thr || r.lane === 'fraud') reasons.push('fraud score ' + r.fraud_score + (r.fraud_flags ? ' (' + r.fraud_flags + ')' : ''));\n    if (r.policy_review) reasons.push(r.policy_review);\n    if (r.reason_mismatch) reasons.push('customer text contradicts the reason code');\n    if (r.needs_human) reasons.push(r.specialist + ' asked for a human');\n    if (r.specialist_confidence !== null && r.specialist_confidence !== undefined && r.specialist_confidence < 0.6) reasons.push(r.specialist + ' confidence ' + r.specialist_confidence);\n    if (refund > MAXV) reasons.push('refund ' + refund + ' over the auto-approve limit ' + MAXV);\n    if (reasons.length) decision = 'human_review';\n    else reasons.push(r.disposition === 'exchange' ? 'clean in-stock exchange' : 'clean, refund ' + refund + ' within the auto-approve limit ' + MAXV);\n  }\n  if (r.fraud_flags && decision === 'reject') reasons.push('fraud flags noted: ' + r.fraud_flags);\n  return { json: Object.assign({}, r, {\n    decision: decision,\n    decision_reasons: reasons.join('; '),\n    refund_amount: decision === 'reject' ? 0 : refund,\n    queue_ref: decision === 'human_review' ? (r.run_id + '-' + r.request_id) : '',\n    approval_status: decision === 'human_review' ? 'awaiting_human_approval' : ''\n  }) };\n});\n"
+      },
+      "id": "ep13-risk-router",
+      "name": "Risk router",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        920,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// LLM reply drafts only get the calls left after orchestrator + specialists.\n// Auto-approvals always get the fixed template; the rest get a model draft\n// while budget lasts, then the template. Nothing here is ever sent.\nfunction count(name) { try { return $(name).all().length; } catch (e) { return 0; } }\nvar budget = Number($input.first().json.llm_budget_run || 0);\nvar used = count('Orchestrator agent') + count('Policy agent') + count('Fraud agent (second opinion)') + count('Inventory agent');\nvar left = Math.max(0, budget - used);\nfunction template(r) {\n  if (r.decision === 'auto_approve' && r.disposition === 'exchange') return 'Hi, your exchange for ' + r.item_name + ' is approved. We will send the replacement (' + r.exchange_sku + ') once your return is scanned by the carrier. [DRAFT - not sent]';\n  if (r.decision === 'auto_approve') return 'Hi, your return for ' + r.item_name + ' is approved. Once it is back with us, a refund of ' + r.refund_amount + ' goes to your original payment method. [DRAFT - not sent]';\n  if (r.decision === 'reject') return 'Hi, thanks for reaching out about ' + r.item_name + '. We cannot accept this return under our policy (' + r.decision_reasons + '). Reply if you think we got this wrong. [DRAFT - not sent]';\n  return 'Hi, thanks for your return request for ' + r.item_name + '. A member of our team is reviewing it and will reply within 2 business days. [DRAFT - not sent]';\n}\nreturn $input.all().map(function (it) {\n  var r = it.json;\n  var want = r.decision !== 'auto_approve';\n  var give = want && left > 0;\n  if (give) left--;\n  var prompt = [\n    'You are the REPLY DRAFTER of a returns desk. Write a short, plain customer email body (max 90 words, no subject line, no sign-off name).',\n    'The decision is already made; you only word it. Decision: ' + r.decision + '. Reasons: ' + r.decision_reasons + '.',\n    'Item: ' + r.item_name + '. Customer wrote: \"' + r.reason_text + '\".',\n    r.decision === 'human_review' ? 'Say a person is reviewing it; do NOT promise a refund or an outcome; do NOT mention fraud, scores or flags.' : 'Explain the policy reason kindly and invite a reply if they think it is wrong; do NOT offer exceptions.',\n    'Never say a refund has been issued. Return only the email body text.'\n  ].join(' ');\n  return { json: Object.assign({}, r, {\n    needs_llm_draft: give,\n    reply_draft: give ? '' : template(r),\n    draft_source: give ? 'llm' : (want ? 'template_budget' : 'template'),\n    prompt_draft: prompt\n  }) };\n});\n"
+      },
+      "id": "ep13-draft-budget-check",
+      "name": "Draft budget check",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1140,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.needs_llm_draft }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "ep13-needs-an-llm-draft?",
+      "name": "Needs an LLM draft?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1360,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.prompt_draft }}",
+        "hasOutputParser": false,
+        "options": {
+          "systemMessage": "You draft short, plain customer emails for a returns desk. Drafts are read by a human and never sent automatically. No markdown."
+        }
+      },
+      "id": "ep13-reply-drafter-agent",
+      "name": "Reply drafter agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.9,
+      "position": [
+        1580,
+        280
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 20000,
+      "onError": "stopWorkflow"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "language": "javaScript",
+        "jsCode": "var base = $('Draft budget check').item.json;\nvar txt = String($json.output || '').replace(/\\*\\*/g, '').trim();\nvar words = txt.split(/\\s+/).filter(Boolean);\nvar guardHit = '';\nif (/refund (has been|was) (issued|processed|sent)|we have refunded|money is on its way/i.test(txt)) guardHit = 'claimed money already moved';\nif (base.decision === 'human_review' && /fraud|score|flag/i.test(txt)) guardHit = 'mentioned internal fraud signals';\nif (words.length > 120) { txt = words.slice(0, 120).join(' '); }\nif (!txt || guardHit) {\n  txt = 'Hi, thanks for your return request for ' + base.item_name + '. A member of our team is reviewing it and will reply within 2 business days.';\n}\nreturn { json: Object.assign({}, base, {\n  reply_draft: txt + ' [DRAFT - not sent]',\n  draft_source: guardHit ? 'template_guard' : 'llm',\n  draft_guard_hit: guardHit\n}) };\n"
+      },
+      "id": "ep13-parse-draft-never-sent",
+      "name": "Parse draft (never sent)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1880,
+        280
+      ]
+    },
+    {
+      "parameters": {
+        "numberInputs": 2
+      },
+      "id": "ep13-merge-drafts",
+      "name": "Merge drafts",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        2100,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.decision }}",
+                    "rightValue": "auto_approve",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "auto_approve"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.decision }}",
+                    "rightValue": "human_review",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "human_review"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.decision }}",
+                    "rightValue": "reject",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "reject"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "ep13-decision",
+      "name": "Decision",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        2320,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// DRY RUN ONLY. There is no payment node, no HTTP node and no send node in\n// this workflow. This line is the whole \"refund\".\nreturn $input.all().map(function (it) {\n  var r = it.json;\n  var mode = r.disposition === 'exchange'\n    ? 'WOULD SHIP EXCHANGE ' + r.exchange_sku + ' - DRY RUN'\n    : 'WOULD REFUND ' + r.refund_amount + ' - DRY RUN (no payment node exists)';\n  return { json: Object.assign({}, r, { refund_mode: mode, approval_status: 'auto_approved' }) };\n});\n"
+      },
+      "id": "ep13-would-refund-dry-run",
+      "name": "WOULD REFUND (dry run)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2560,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "insert",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "REPLACE_ME",
+          "cachedResultName": "ep13_approval_queue"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "run_id": "={{ $json.run_id }}",
+            "request_id": "={{ $json.request_id }}",
+            "order_ref": "={{ $json.order_ref }}",
+            "customer_ref": "={{ $json.customer_ref }}",
+            "item_name": "={{ $json.item_name }}",
+            "refund_value": "={{ $json.refund_value }}",
+            "lane": "={{ $json.lane }}",
+            "orchestrator_lane": "={{ $json.orchestrator_lane }}",
+            "lane_overridden": "={{ $json.lane_overridden }}",
+            "specialist": "={{ $json.specialist }}",
+            "specialist_view": "={{ $json.specialist_view }}",
+            "fraud_score": "={{ $json.fraud_score }}",
+            "fraud_flags": "={{ $json.fraud_flags }}",
+            "policy_hard_fail": "={{ $json.policy_hard_fail }}",
+            "policy_review": "={{ $json.policy_review }}",
+            "disposition": "={{ $json.disposition }}",
+            "decision": "={{ $json.decision }}",
+            "decision_reasons": "={{ $json.decision_reasons }}",
+            "refund_amount": "={{ $json.refund_amount }}",
+            "refund_mode": "={{ $json.refund_mode }}",
+            "reply_draft": "={{ $json.reply_draft }}",
+            "draft_source": "={{ $json.draft_source }}",
+            "approval_status": "={{ $json.approval_status }}",
+            "queue_ref": "={{ $json.queue_ref }}"
+          },
+          "matchingColumns": [],
+          "schema": []
+        }
+      },
+      "id": "ep13-approval-queue-row",
+      "name": "Approval queue row",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        2560,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "return $input.all().map(function (it) {\n  return { json: Object.assign({}, it.json, { refund_mode: 'NO REFUND - rejected by rule', approval_status: 'rejected_by_rule' }) };\n});\n"
+      },
+      "id": "ep13-reject-with-reason",
+      "name": "Reject with reason",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2560,
+        600
+      ]
+    },
+    {
+      "parameters": {
+        "numberInputs": 3
+      },
+      "id": "ep13-merge-outcomes",
+      "name": "Merge outcomes",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        2800,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "insert",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "REPLACE_ME",
+          "cachedResultName": "ep13_ledger"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "run_id": "={{ $json.run_id }}",
+            "request_id": "={{ $json.request_id }}",
+            "order_ref": "={{ $json.order_ref }}",
+            "customer_ref": "={{ $json.customer_ref }}",
+            "item_name": "={{ $json.item_name }}",
+            "refund_value": "={{ $json.refund_value }}",
+            "lane": "={{ $json.lane }}",
+            "orchestrator_lane": "={{ $json.orchestrator_lane }}",
+            "lane_overridden": "={{ $json.lane_overridden }}",
+            "specialist": "={{ $json.specialist }}",
+            "specialist_view": "={{ $json.specialist_view }}",
+            "fraud_score": "={{ $json.fraud_score }}",
+            "fraud_flags": "={{ $json.fraud_flags }}",
+            "policy_hard_fail": "={{ $json.policy_hard_fail }}",
+            "policy_review": "={{ $json.policy_review }}",
+            "disposition": "={{ $json.disposition }}",
+            "decision": "={{ $json.decision }}",
+            "decision_reasons": "={{ $json.decision_reasons }}",
+            "refund_amount": "={{ $json.refund_amount }}",
+            "refund_mode": "={{ $json.refund_mode }}",
+            "reply_draft": "={{ $json.reply_draft }}",
+            "draft_source": "={{ $json.draft_source }}",
+            "approval_status": "={{ $json.approval_status }}"
+          },
+          "matchingColumns": [],
+          "schema": []
+        }
+      },
+      "id": "ep13-ledger-write",
+      "name": "Ledger write",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        3020,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "function all(name) { try { return $(name).all().map(function (i) { return i.json; }); } catch (e) { return []; } }\nvar rows = all('Merge outcomes');\nvar first = all('Caps gate')[0] || {};\nvar norm = all('Normalize request');\nfunction tally(key) { var t = {}; rows.forEach(function (r) { var k = r[key] || 'none'; t[k] = (t[k] || 0) + 1; }); return t; }\nvar flags = {};\nrows.forEach(function (r) { String(r.fraud_flags || '').split(',').filter(Boolean).forEach(function (f) { flags[f] = (flags[f] || 0) + 1; }); });\nvar calls = {\n  orchestrator: all('Orchestrator agent').length,\n  policy: all('Policy agent').length,\n  fraud: all('Fraud agent (second opinion)').length,\n  inventory: all('Inventory agent').length,\n  reply_drafter: all('Reply drafter agent').length\n};\nvar total = calls.orchestrator + calls.policy + calls.fraud + calls.inventory + calls.reply_drafter;\nvar wouldRefund = rows.filter(function (r) { return r.decision === 'auto_approve'; }).reduce(function (s, r) { return s + Number(r.refund_amount || 0); }, 0);\nreturn [{ json: {\n  run_id: first.run_id,\n  requests_in: norm.length + Number((norm[0] || {}).dropped_at_normalize || 0),\n  dropped_at_normalize: Number((norm[0] || {}).dropped_at_normalize || 0),\n  deferred_by_cap: Number(first.deferred_by_cap || 0),\n  processed: rows.length,\n  by_lane: tally('lane'),\n  by_decision: tally('decision'),\n  by_disposition: tally('disposition'),\n  fraud_flags_fired: flags,\n  policy_hard_fails: rows.filter(function (r) { return r.policy_hard_fail; }).length,\n  policy_reviews: rows.filter(function (r) { return r.policy_review; }).length,\n  lane_overrides: rows.filter(function (r) { return r.lane_overridden; }).length,\n  orchestrator_agreed_with_rules: rows.filter(function (r) { return !r.lane_overridden; }).length,\n  reason_mismatches: rows.filter(function (r) { return r.reason_mismatch; }).length,\n  agent_disagreed_with_rule: rows.filter(function (r) { return r.agent_disagreed_with_rule; }).length,\n  drafts: tally('draft_source'),\n  approval_queue_rows: all('Approval queue row').length,\n  ledger_rows: $input.all().length,\n  llm_calls: calls,\n  llm_calls_total: total,\n  llm_budget_run: Number(first.llm_budget_run || 0),\n  would_refund_total_dry_run: wouldRefund,\n  refunds_executed: 0,\n  messages_sent: 0\n} }];\n"
+      },
+      "id": "ep13-run-summary",
+      "name": "Run summary",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3240,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "update",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "REPLACE_ME",
+          "cachedResultName": "ep13_caps"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "cap_id",
+              "condition": "eq",
+              "keyValue": "ep13"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "llm_calls_today": "={{ Number($('Load caps').first().json.llm_calls_today || 0) + Number($json.llm_calls_total || 0) }}",
+            "last_run_id": "={{ $json.run_id }}",
+            "consecutive_errors": "={{ 0 }}"
+          },
+          "matchingColumns": [],
+          "schema": []
+        }
+      },
+      "id": "ep13-bump-caps",
+      "name": "Bump caps",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        3460,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "ep13-approval",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "ep13-approval-decision-in",
+      "name": "Approval decision in",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -2200,
+        1600
+      ],
+      "webhookId": "ep13-approval"
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "REPLACE_ME",
+          "cachedResultName": "ep13_approval_queue"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "queue_ref",
+              "condition": "eq",
+              "keyValue": "={{ $json.body.queue_ref }}"
+            }
+          ]
+        },
+        "returnAll": true
+      },
+      "id": "ep13-find-queue-row",
+      "name": "Find queue row",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        -1960,
+        1600
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// Approval webhook. The human decides \"on your terms\": approve (optionally a\n// smaller amount) or decline with a note. Still a DRY RUN: no payment node.\nvar req = $('Approval decision in').first().json;\nvar b = req.body || {};\nvar row = $input.first().json;\nif (!row || !row.queue_ref) throw new Error('queue_ref not found in ep13_approval_queue');\nif (row.approval_status !== 'awaiting_human_approval') throw new Error('already decided: ' + row.approval_status);\nvar d = String(b.decision || '').toLowerCase();\nif (d !== 'approve' && d !== 'decline') throw new Error('decision must be approve or decline');\nvar amt = Number(row.refund_amount || 0);\nif (d === 'approve' && b.refund_amount !== undefined && b.refund_amount !== null && b.refund_amount !== '') {\n  var ask = Number(b.refund_amount);\n  if (!isFinite(ask) || ask < 0 || ask > amt) throw new Error('refund_amount must be between 0 and ' + amt);\n  amt = ask;\n}\nvar who = String(b.approver || 'approval link').slice(0, 80);\nreturn [{ json: {\n  queue_ref: row.queue_ref,\n  run_id: row.run_id,\n  request_id: row.request_id,\n  order_ref: row.order_ref,\n  decision: d === 'approve' ? 'human_approved' : 'human_declined',\n  approval_status: d === 'approve' ? 'approved_by_human' : 'declined_by_human',\n  refund_amount: d === 'approve' ? amt : 0,\n  refund_mode: d === 'approve' ? ('WOULD REFUND ' + amt + ' - DRY RUN (no payment node exists)') : 'NO REFUND - declined by human',\n  decided_by: who,\n  decided_at: $now.toISO(),\n  decision_note: String(b.note || '').slice(0, 300)\n} }];\n"
+      },
+      "id": "ep13-validate-decision",
+      "name": "Validate decision",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1720,
+        1600
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "update",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "REPLACE_ME",
+          "cachedResultName": "ep13_approval_queue"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "queue_ref",
+              "condition": "eq",
+              "keyValue": "={{ $json.queue_ref }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "approval_status": "={{ $('Validate decision').first().json.approval_status }}",
+            "refund_amount": "={{ $('Validate decision').first().json.refund_amount }}",
+            "refund_mode": "={{ $('Validate decision').first().json.refund_mode }}",
+            "decided_by": "={{ $('Validate decision').first().json.decided_by }}",
+            "decided_at": "={{ $('Validate decision').first().json.decided_at }}",
+            "decision_note": "={{ $('Validate decision').first().json.decision_note }}"
+          },
+          "matchingColumns": [],
+          "schema": []
+        }
+      },
+      "id": "ep13-update-queue-row",
+      "name": "Update queue row",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        -1480,
+        1600
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "insert",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "REPLACE_ME",
+          "cachedResultName": "ep13_ledger"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "run_id": "={{ $('Validate decision').first().json.run_id }}",
+            "request_id": "={{ $('Validate decision').first().json.request_id }}",
+            "order_ref": "={{ $('Validate decision').first().json.order_ref }}",
+            "decision": "={{ $('Validate decision').first().json.decision }}",
+            "refund_amount": "={{ $('Validate decision').first().json.refund_amount }}",
+            "refund_mode": "={{ $('Validate decision').first().json.refund_mode }}",
+            "approval_status": "={{ $('Validate decision').first().json.approval_status }}",
+            "decision_reasons": "={{ 'human ' + $('Validate decision').first().json.decided_by + ': ' + $('Validate decision').first().json.decision_note }}"
+          },
+          "matchingColumns": [],
+          "schema": []
+        }
+      },
+      "id": "ep13-ledger:-human-decision",
+      "name": "Ledger: human decision",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        -1240,
+        1600
+      ],
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($('Validate decision').first().json) }}",
+        "options": {}
+      },
+      "id": "ep13-reply-to-approver",
+      "name": "Reply to approver",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        -1000,
+        1600
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## A TEAM OF AGENTS, RULES FIRST\n\nOrchestrator agent picks a lane per request. Policy agent, Fraud agent (second opinion), Inventory agent and Reply drafter agent each do one job.\n\nRules precheck runs BEFORE any model: policy rules P1-P4b and fraud rules F1-F6. Parse + lane guard lets the model add scrutiny, never remove it.",
+        "height": 300,
+        "width": 520
+      },
+      "id": "ep13-note:-team-of-agents",
+      "name": "Note: team of agents",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -900,
+        -420
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## THERE IS NO PAYMENT NODE\n\nNo HTTP node, no email node, no messaging node. WOULD REFUND (dry run) only writes a line. Human-review cases wait in ep13_approval_queue; the Approval decision in webhook records approve / decline on your terms, still a dry run. Every reply is a DRAFT, never sent.",
+        "height": 300,
+        "width": 520
+      },
+      "id": "ep13-note:-no-refund-node",
+      "name": "Note: no refund node",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        2500,
+        -420
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## CAPS (ep13_caps Data Table)\n\nkill_switch, breaker_tripped, max_items_per_run, max_llm_calls_per_run, llm_calls_per_day / llm_calls_today, est_usd_per_call x budget <= spend_cap_usd_per_run.\n\nCaps gate throws before any model call. Draft budget check gives reply drafts only the calls left over.",
+        "height": 300,
+        "width": 520
+      },
+      "id": "ep13-note:-cap-sheet",
+      "name": "Note: cap sheet",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -1600,
+        -420
+      ]
+    }
+  ],
+  "connections": {
+    "Run fixture (manual)": {
+      "main": [
+        [
+          {
+            "node": "Load fixture (24 synthetic)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load fixture (24 synthetic)": {
+      "main": [
+        [
+          {
+            "node": "Normalize request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Return request in": {
+      "main": [
+        [
+          {
+            "node": "Normalize request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize request": {
+      "main": [
+        [
+          {
+            "node": "Load caps",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load caps": {
+      "main": [
+        [
+          {
+            "node": "Caps gate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Caps gate": {
+      "main": [
+        [
+          {
+            "node": "Rules precheck",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rules precheck": {
+      "main": [
+        [
+          {
+            "node": "Orchestrator agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Orchestrator agent": {
+      "main": [
+        [
+          {
+            "node": "Parse + lane guard",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse + lane guard": {
+      "main": [
+        [
+          {
+            "node": "Route to specialist",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route to specialist": {
+      "main": [
+        [
+          {
+            "node": "Policy agent",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Borderline fraud score?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Inventory agent",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Merge lanes",
+            "type": "main",
+            "index": 4
+          }
+        ]
+      ]
+    },
+    "Policy agent": {
+      "main": [
+        [
+          {
+            "node": "Parse policy ruling",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse policy ruling": {
+      "main": [
+        [
+          {
+            "node": "Merge lanes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Borderline fraud score?": {
+      "main": [
+        [
+          {
+            "node": "Fraud agent (second opinion)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Merge lanes",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "Fraud agent (second opinion)": {
+      "main": [
+        [
+          {
+            "node": "Parse fraud opinion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse fraud opinion": {
+      "main": [
+        [
+          {
+            "node": "Merge lanes",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Inventory agent": {
+      "main": [
+        [
+          {
+            "node": "Parse disposition",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse disposition": {
+      "main": [
+        [
+          {
+            "node": "Merge lanes",
+            "type": "main",
+            "index": 3
+          }
+        ]
+      ]
+    },
+    "Merge lanes": {
+      "main": [
+        [
+          {
+            "node": "Risk router",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Risk router": {
+      "main": [
+        [
+          {
+            "node": "Draft budget check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Draft budget check": {
+      "main": [
+        [
+          {
+            "node": "Needs an LLM draft?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Needs an LLM draft?": {
+      "main": [
+        [
+          {
+            "node": "Reply drafter agent",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Merge drafts",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Reply drafter agent": {
+      "main": [
+        [
+          {
+            "node": "Parse draft (never sent)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse draft (never sent)": {
+      "main": [
+        [
+          {
+            "node": "Merge drafts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge drafts": {
+      "main": [
+        [
+          {
+            "node": "Decision",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Decision": {
+      "main": [
+        [
+          {
+            "node": "WOULD REFUND (dry run)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Approval queue row",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Reject with reason",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "WOULD REFUND (dry run)": {
+      "main": [
+        [
+          {
+            "node": "Merge outcomes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Approval queue row": {
+      "main": [
+        [
+          {
+            "node": "Merge outcomes",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Reject with reason": {
+      "main": [
+        [
+          {
+            "node": "Merge outcomes",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "Merge outcomes": {
+      "main": [
+        [
+          {
+            "node": "Ledger write",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ledger write": {
+      "main": [
+        [
+          {
+            "node": "Run summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run summary": {
+      "main": [
+        [
+          {
+            "node": "Bump caps",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Approval decision in": {
+      "main": [
+        [
+          {
+            "node": "Find queue row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find queue row": {
+      "main": [
+        [
+          {
+            "node": "Validate decision",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate decision": {
+      "main": [
+        [
+          {
+            "node": "Update queue row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update queue row": {
+      "main": [
+        [
+          {
+            "node": "Ledger: human decision",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ledger: human decision": {
+      "main": [
+        [
+          {
+            "node": "Reply to approver",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter gpt-oss-20b": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Orchestrator agent",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "Policy agent",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "Fraud agent (second opinion)",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "Inventory agent",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "Reply drafter agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "executionTimeout": 900,
+    "errorWorkflow": "REPLACE_ME"
+  }
+}
