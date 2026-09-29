@@ -1,0 +1,130 @@
+{
+  "name": "EP11 Missed call -> text in 60 seconds (simulated send, 4 nodes)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "ep11-missed-call",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "ep11-webhook",
+      "name": "Missed call in",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -440,
+        300
+      ],
+      "webhookId": "ep11-missed-call",
+      "notes": "POST the missed-call event your phone system sends. Demo payload in README."
+    },
+    {
+      "parameters": {
+        "jsCode": "// EP11 - compose the callback text for a missed call.\n// Zero client data: everything here comes from the webhook body or the constants below.\nconst BUSINESS   = 'Ridgeline Roofing (demo)'; // fictional demo contractor - change to your trading name\nconst BOOK_LINK  = 'https://example.com/book';// your booking page (Calendly, form, whatever)\nconst TZ_OFFSET  = 8;                          // hours from UTC for \"is it working hours\"\nconst OPEN_HOUR  = 7;                          // 07:00 local\nconst CLOSE_HOUR = 19;                         // 19:00 local\nconst MISSED = ['no-answer', 'busy', 'failed', 'missed', 'voicemail', 'canceled'];\n\n// One provider payload shape in, one flat shape out. Add a line per provider you use.\nfunction normalise(b) {\n  const g = (...keys) => keys.map(k => b[k]).find(v => v !== undefined && v !== null && v !== '');\n  const status = String(\n    g('call_status', 'CallStatus', 'status', 'event') ??\n    (b.answered === false ? 'no-answer' : 'unknown')\n  )\n    .toLowerCase()\n    .split('.').pop()          // 'call.missed' -> 'missed'\n    .replace(/_/g, '-');       // 'no_answer'   -> 'no-answer'\n  return {\n    call_id:      String(g('call_id', 'CallSid', 'id', 'uuid') ?? 'no-call-id'),\n    caller:       String(g('from', 'From', 'customer_phone_number', 'caller') ?? ''),\n    called:       String(g('to', 'To', 'tracking_phone_number', 'called') ?? ''),\n    call_status:  status,\n    ring_seconds: Number(g('ring_seconds', 'RingDuration', 'duration', 'Duration') ?? 0) || 0,\n  };\n}\n\nconst nowUtc  = new Date();\nconst local   = new Date(nowUtc.getTime() + TZ_OFFSET * 3600 * 1000);\nconst hour    = local.getUTCHours();\nconst openNow = hour >= OPEN_HOUR && hour < CLOSE_HOUR;\n\nreturn items.map(item => {\n  const c = normalise(item.json.body ?? item.json);\n\n  // E.164-ish sanity. No digits, no text - we never invent a destination number.\n  const digits   = c.caller.replace(/[^0-9+]/g, '');\n  const sendable = /^\\+?[0-9]{7,15}$/.test(digits);\n  const missed   = MISSED.includes(c.call_status);\n\n  const action = !missed   ? 'ignored_not_a_missed_call'\n               : !sendable ? 'ignored_unusable_number'\n               :             'text_composed_simulated_send';\n\n  const body = openNow\n    ? `Sorry we missed your call - ${BUSINESS} here, we're on site. Want me to book you in? Reply YES or pick a slot: ${BOOK_LINK}`\n    : `Sorry we missed your call - ${BUSINESS} here. We're off site for the night. Want me to book you in first thing? ${BOOK_LINK}`;\n\n  return {\n    json: {\n      received_at:  nowUtc.toISOString(),\n      call_id:      c.call_id,\n      // caller_digits, not caller: n8n's expression sandbox refuses\n      // $json.caller (\"Cannot access \\\"caller\\\" due to security concerns\").\n      caller_digits: digits || c.caller,\n      called:       c.called,\n      call_status:  c.call_status,\n      ring_seconds: c.ring_seconds,\n      action,\n      sms_to:       action === 'text_composed_simulated_send' ? digits : '',\n      sms_body:     action === 'text_composed_simulated_send' ? body   : '',\n      send_mode:    'SIMULATED - logged to ep11_missed_calls, nothing dialled',\n      job_status:   missed && sendable ? 'needs_callback' : 'no_action',\n      chars:        action === 'text_composed_simulated_send' ? body.length : 0,\n    },\n  };\n});\n"
+      },
+      "id": "ep11-compose",
+      "name": "Compose the callback text",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -200,
+        300
+      ],
+      "notes": "Normalises any provider payload, decides if it was really missed, writes the SMS text. No send."
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "REPLACE_ME",
+          "cachedResultName": "ep11_missed_calls"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "received_at": "={{ $json.received_at }}",
+            "call_id": "={{ $json.call_id }}",
+            "caller": "={{ $json.caller_digits }}",
+            "called": "={{ $json.called }}",
+            "call_status": "={{ $json.call_status }}",
+            "ring_seconds": "={{ $json.ring_seconds }}",
+            "action": "={{ $json.action }}",
+            "sms_to": "={{ $json.sms_to }}",
+            "sms_body": "={{ $json.sms_body }}",
+            "send_mode": "={{ $json.send_mode }}",
+            "job_status": "={{ $json.job_status }}"
+          },
+          "matchingColumns": [],
+          "schema": []
+        }
+      },
+      "id": "ep11-log",
+      "name": "Log job + simulated SMS",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        40,
+        300
+      ],
+      "notes": "THIS IS THE SEND STEP, simulated. The composed text lands in a row; no telephony node exists on this canvas."
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ ok: true, call_id: $json.call_id, action: $json.action, job_status: $json.job_status, sms_to: $json.sms_to, sms_body: $json.sms_body, send_mode: $json.send_mode }) }}",
+        "options": {}
+      },
+      "id": "ep11-respond",
+      "name": "Reply to the phone system",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        280,
+        300
+      ],
+      "notes": "Echoes the composed text back so curl shows what would have been sent."
+    }
+  ],
+  "connections": {
+    "Missed call in": {
+      "main": [
+        [
+          {
+            "node": "Compose the callback text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compose the callback text": {
+      "main": [
+        [
+          {
+            "node": "Log job + simulated SMS",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log job + simulated SMS": {
+      "main": [
+        [
+          {
+            "node": "Reply to the phone system",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "executionTimeout": 60
+  }
+}
