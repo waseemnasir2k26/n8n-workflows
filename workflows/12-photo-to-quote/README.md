@@ -1,6 +1,6 @@
 # 12 — Your foreman sends a photo, you send a price
 
-`EP12 Photo from site -> line-itemed quote draft (human approval gate, no send step, 12 nodes)` — **12 nodes**.
+`EP12 Photo from site -> line-itemed quote draft (human approval gate, nothing in it can reach your customer, 12 nodes)` — **12 nodes**.
 
 Your lad on site sends a photo at four o'clock. You write the quote at nine that night, after dinner,
 tired. This lane does the typing: the photo and his note go in, a vision model reads them, the work it
@@ -9,15 +9,17 @@ have left the site.
 
 Then it stops.
 
-## It does not send anything
+## Nothing in it can reach your customer
 
-**There is no send step in this workflow at all.** Not disabled, not commented out, not as an example.
-Grep the file: there is no email node, no SMTP, no Gmail, no Twilio, no WhatsApp, no SMS, no Slack, no
-Telegram, no CRM. The flow ends with a drafted quote sitting in a table.
+Open the JSON and check the node list yourself. **No email node. No messaging node.** No SMTP, no Gmail,
+no Twilio, no WhatsApp, no SMS, no Slack, no Telegram, no CRM — not present, not disabled, not as an
+example. **Both approval branches are terminal**: the workflow ends at a drafted quote sitting in a table.
 
-The one outbound HTTP call it makes goes to **your vision model endpoint**, carrying the photo and the
-site note. It never carries a quote and it never goes to a customer. The Respond-to-Webhook node replies
-to whatever posted the photo — your own intake, your own foreman's form — not to a customer.
+It does make one outbound HTTP call, and it is honest about it: node 5 POSTs the photo and the site note
+to **a vision endpoint you choose** (shipped pointing at OpenRouter). That call carries an image and a
+note to a model API. It never carries a quote and it has no route to a customer. Node 8 replies to
+whatever posted the photo — your own intake, your own staff form — which is why the intake must be yours
+and not a public customer form. See _Using it for real_.
 
 Sending the approved quote is **your own action**, taken by you, outside this file. That is not a gap in
 the build. It is the build.
@@ -82,21 +84,25 @@ The response hands back the draft plus the two gate links:
 ```json
 {
   "ok": true,
-  "quote_ref": "Q-20260929-001",
+  "quote_ref": "Q-20260929-40412-01",
   "approval_status": "awaiting_human_approval",
   "line_count": 4,
   "currency_code": "GBP",
-  "total_amount": 0,
+  "subtotal_amount": 436,
+  "tax_amount": 87.2,
+  "total_amount": 523.2,
   "flags": "none",
-  "release_mode": "NOT SENT - no customer-facing send node exists on this canvas",
+  "release_mode": "NOT SENT - nothing in this workflow can reach your customer",
   "approve_url": "https://YOUR-N8N/webhook-waiting/<execution-id>?decision=approve",
   "hold_url": "https://YOUR-N8N/webhook-waiting/<execution-id>?decision=hold",
-  "quote_summary": "DRAFT QUOTE Q-20260929-001 ..."
+  "quote_summary": "DRAFT QUOTE Q-20260929-40412-01 ..."
 }
 ```
 
-`line_count` and `total_amount` depend entirely on your rate card and what the model reads in your photo —
-the values above are placeholders for the shape, not a result anyone measured.
+**Those numbers are not a measured run.** They are four lines worked by hand through the illustrative
+rate card in this folder — 5 x `RF-TILE-REPLACE` @28, 1 x `RF-RIDGE-REBED` @62, 12 x `GUT-CLEAR` @9.50,
+1 x `SCAF-TOWER` @120 — so the arithmetic is at least self-consistent (436 + 20% = 523.20). What you get
+depends entirely on your own rate card and what the model reads in your own photo.
 
 ## Flow, node by node
 
@@ -117,8 +123,9 @@ the values above are placeholders for the shape, not a result anyone measured.
                                           site note, the catalogue of item_codes, and the image.
                                           NO PRICE IS PUT IN THE PROMPT.
            |
-5  Vision model reads the photo           HTTP Request, POST to any OpenAI-compatible vision
-                                          endpoint. Header Auth. onError=continueRegularOutput
+5  Vision model reads the photo           HTTP Request, POST to a vision endpoint YOU choose
+                                          (shipped pointing at OpenRouter; any OpenAI-compatible
+                                          endpoint works). Header Auth. onError=continueRegularOutput
                                           on purpose: a dead model still produces a flagged draft.
            |
 6  Price it against the rate card         Code: parses the model's JSON, matches item_code against
@@ -152,7 +159,7 @@ that tells you why the human has to look.
 
 | #                    | Node                         | Credential                              | Notes                                                             |
 | -------------------- | ---------------------------- | --------------------------------------- | ----------------------------------------------------------------- |
-| 5                    | Vision model reads the photo | **Header Auth** — `REPLACE_ME`          | Any OpenAI-compatible vision endpoint. Shipped URL is OpenRouter. |
+| 5                    | Vision model reads the photo | **Header Auth** — `REPLACE_ME`          | A vision endpoint you choose; shipped pointing at OpenRouter.     |
 | 3, 7, 11, 12         | Data Table nodes             | none (Data Tables are not a credential) | Two tables, `dataTableId` is `REPLACE_ME` in all four.            |
 | 1, 2, 4, 6, 8, 9, 10 | —                            | **none**                                | No SMTP, no CRM, no telephony. Deliberately.                      |
 
@@ -181,7 +188,7 @@ Create it empty. Columns:
 
 | Column             | Type   | Holds                                                                    |
 | ------------------ | ------ | ------------------------------------------------------------------------ | -------------------- |
-| `quote_ref`        | string | `Q-YYYYMMDD-NNN`, minted in node 2 — the key the gate updates on         |
+| `quote_ref`        | string | `Q-YYYYMMDD-<execId>-NN`, minted in node 2 — the key the gate updates on         |
 | `received_at`      | string | ISO timestamp the photo arrived                                          |
 | `site_ref`         | string | your own job reference. Not the customer's address.                      |
 | `requester_name`   | string | who sent the photo                                                       |
@@ -211,18 +218,30 @@ in all four, which is the only thing you must set after import.
 - **`rate-card-sample.csv` → your real prices.** This is the whole job. Everything else works out of the box.
 - Node 2, four constants: `TRADE_CODE` (`roofing`), `CURRENCY` (`GBP`), `TAX_RATE` (`0.20` — set `0` if you
   quote tax-exclusive), `MAX_NOTE_LEN`.
-- Node 4, `MODEL` — shipped as `anthropic/claude-sonnet-4.5`. Any vision model your endpoint serves.
+- Node 4, `MODEL` — shipped as `anthropic/claude-sonnet-4.5` against OpenRouter. Change both the model and
+  node 5's URL to whatever vision endpoint you choose; nothing here is tied to one vendor.
 - Node 6, `QTY_CEILING` (500) — the point past which a quantity is clamped and flagged rather than billed.
 
 ## Using it for real
 
-1. Run it a few dozen times and read the drafts **without approving any of them**. You are calibrating your
+**Requirement, not a suggestion: the intake must be yours.** The webhook on node 1 is the form your
+foreman, your office or your own email parser posts into — a *staff-facing* intake. It must not be a
+public "send us a photo for a quote" form on your website. Node 8 replies to whoever posted, and that
+reply contains `quote_summary`, `total_amount` and the `approve_url`. Wire a customer to that endpoint
+and you have handed them an unapproved price and a one-click approve button for it. "Nothing in it can
+reach your customer" is true of the node list; it stops being true if you put the customer on the input.
+
+1. **Authenticate the intake webhook.** Node 1 ships with no auth because it ships as a demo. Before it
+   sees a real photo, set Header Auth / Basic Auth on it, or put it behind your own form's server. An open
+   `/webhook/ep12-photo-to-quote` is a free vision-model bill and a leak of your rate card's shape.
+2. **Authenticate the resume URL too.** The Wait node has the same **Authentication** option
+   (Basic / Header / JWT). An unauthenticated resume URL is a one-click approve for anyone who gets it —
+   including a link-preview crawler in whatever chat app you paste it into.
+3. Run it a few dozen times and read the drafts **without approving any of them**. You are calibrating your
    rate card, not the model.
-2. Put the gate links somewhere a human actually looks. The webhook response is fine for testing and
+4. Put the gate links somewhere a human actually looks. The webhook response is fine for testing and
    useless in the van.
-3. Protect the resume URL before it goes anywhere public: the Wait node has an **Authentication** option
-   (Basic / Header / JWT). An unauthenticated resume URL is a one-click approve for anyone who gets it.
-4. **Send the quote yourself.** Copy `quote_summary` out of the `approved_by_human` row and send it the way
+5. **Send the quote yourself.** Copy `quote_summary` out of the `approved_by_human` row and send it the way
    you already send quotes. This workflow will not do it for you and is not built to. If you later decide to
    automate that last step, you are adding a node that can contact customers to a lane that currently
    cannot — that is a different risk profile and a decision only you can make, with your name on the quote.
@@ -251,7 +270,9 @@ in all four, which is the only thing you must set after import.
   shared channel.
 - **The IF compares strings, so it fails closed — keep it that way.** Do not "simplify" it to a boolean
   check on the query object. `?decision=Approve`, `?decision=yes`, a link-preview crawler firing a bare GET:
-  all of them must hold, and they do only because the comparison is to the exact word `approve`.
+  all of them must hold, and they do only because the comparison is to the exact word `approve` **with
+  the node's _Ignore Case_ option off** (`caseSensitive: true` in the JSON). n8n's default for that option
+  is the opposite, so if you rebuild this node by hand, `?decision=Approve` will approve.
 - **The model's `confidence` is a number it made up.** It is stored because it is occasionally a useful
   smell, not because it measures anything. Do not gate an auto-send on it. Do not put it in front of a
   customer.
@@ -267,6 +288,14 @@ in all four, which is the only thing you must set after import.
 - **Data Table columns are typed.** `unit_price`, `min_qty`, `line_count` and the three amounts are number
   columns; a CSV row with `28.00 GBP` in `unit_price` fails the insert. The Code node coerces with
   `Number(...) || 0`, so a bad rate-card row silently prices at zero — check your import.
+- **`quote_ref` must be unique per draft, and the obvious way to mint it is wrong.** Nodes 11 and 12
+  update the queue with `quote_ref eq <ref>`, and an n8n Data Table update writes **every matching row**.
+  The first cut of node 2 built the ref from the date plus the item index — but a webhook delivers one
+  item, so the index is always 0 and every quote drafted that day came out as `Q-YYYYMMDD-001`. Approving
+  the third quote of the day would have silently stamped `approved_by_human` on all of them. It now mints
+  from `$execution.id` (falling back to a timestamp + random suffix), which is unique per run. If you
+  re-roll the ref scheme — to bolt on your own job numbers, say — keep it unique per draft, or filter the
+  two update nodes on the execution id instead.
 - **n8n's expression sandbox refuses some identifiers outright.** `{{ $json.caller }}` is rejected with
   _"Cannot access \"caller\" due to security concerns"_ (found the hard way in EP11). Nothing this workflow
   emits is named `caller`, `callee`, `arguments`, `constructor` or `prototype`. If you rename a field, keep
@@ -275,7 +304,7 @@ in all four, which is the only thing you must set after import.
 ## Files
 
 ```
-workflow.json           the importable workflow, 12 nodes, no send step, dataTableId REPLACE_ME x4
+workflow.json           the importable workflow, 12 nodes, no email/messaging node, dataTableId REPLACE_ME x4
 rate-card-sample.csv    23 seed rows for ep12_rate_card - ILLUSTRATIVE PRICES
 sample-site-photo.json  the synthetic intake payload used in the curl above
 README.md               this file
