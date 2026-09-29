@@ -70,6 +70,13 @@
       "status": "build",
       "video_url": null,
       "json_url": "https://github.com/waseemnasir2k26/n8n-workflows/tree/main/workflows/12-photo-to-quote"
+    },
+    {
+      "slug": "returns-agent-desk",
+      "title": "Returns Agent Desk (team of agents, rules first, human approval queue) - an orchestrator agent routes each return to policy, fraud and inventory agents behind deterministic rules; clean low-value cases auto-approve, flagged ones wait for a human; no payment node, refunds are DRY RUN lines, replies are drafts never sent",
+      "status": "build",
+      "video_url": null,
+      "json_url": "https://github.com/waseemnasir2k26/n8n-workflows/tree/main/workflows/13-returns-agent-desk"
     }
   ]
 }

@@ -1,0 +1,139 @@
+{
+  "name": "EP13 Error handler",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "ep13-err-trigger",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "REPLACE_ME",
+          "cachedResultName": "ep13_caps"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "cap_id",
+              "condition": "eq",
+              "keyValue": "ep13"
+            }
+          ]
+        },
+        "returnAll": true
+      },
+      "id": "ep13-err-read-caps",
+      "name": "Read caps",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        240,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "var c = $input.first().json || {};\nvar err = $('Error Trigger').first().json || {};\nvar n = Number(c.consecutive_errors || 0) + 1;\nvar thr = Number(c.error_trip_threshold || 3);\nvar msg = (err.execution && err.execution.error && err.execution.error.message) || 'unknown error';\nreturn [{ json: { consecutive_errors: n, breaker_tripped: n >= thr || c.breaker_tripped === true, last_error: String(msg).slice(0, 300) } }];\n"
+      },
+      "id": "ep13-err-count",
+      "name": "Count error + trip check",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "update",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "REPLACE_ME",
+          "cachedResultName": "ep13_caps"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "cap_id",
+              "condition": "eq",
+              "keyValue": "ep13"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "consecutive_errors": "={{ $json.consecutive_errors }}",
+            "breaker_tripped": "={{ $json.breaker_tripped }}",
+            "last_error": "={{ $json.last_error }}"
+          },
+          "matchingColumns": [],
+          "schema": []
+        }
+      },
+      "id": "ep13-err-write",
+      "name": "Write counter + breaker",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        720,
+        0
+      ]
+    }
+  ],
+  "connections": {
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "Read caps",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read caps": {
+      "main": [
+        [
+          {
+            "node": "Count error + trip check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Count error + trip check": {
+      "main": [
+        [
+          {
+            "node": "Write counter + breaker",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
