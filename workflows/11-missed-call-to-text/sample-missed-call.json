@@ -1,0 +1,8 @@
+{
+  "event": "call.missed",
+  "call_id": "demo-0001",
+  "from": "+61 491 570 156",
+  "to": "+61 491 570 157",
+  "ring_seconds": 22,
+  "received_at": "2026-09-28T09:14:03Z"
+}
