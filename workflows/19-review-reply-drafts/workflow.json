@@ -1,0 +1,298 @@
+{
+  "name": "S08 Review reply drafts (human approves)",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## What this does\n\nA review notification email arrives. The star rating is read in code. Only 1-3 star reviews get an AI-drafted reply (calm, no excuses, invites them to talk offline). The draft goes to your Slack approvals channel. A human pastes it. Nothing is ever posted for you.",
+        "height": 300,
+        "width": 460,
+        "color": 4
+      },
+      "id": "sticky-1",
+      "name": "What this does",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -1000,
+        -420
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Setup in 4 steps\n\n1. Import and connect Gmail, Groq (OpenAI-compatible) and Slack credentials.\n2. Point the Gmail Trigger search at your review-notification emails.\n3. Create the #approvals channel (placeholder in the Slack node).\n4. Send yourself a test notification, then enable the Slack node.",
+        "height": 300,
+        "width": 460,
+        "color": 5
+      },
+      "id": "sticky-2",
+      "name": "Setup in 4 steps",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -520,
+        -420
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Safety: never auto-posts\n\nSIMULATED - enable after credentials. There is no node that posts to Google, Facebook or Yelp. The Slack message is disabled by default; it only ever asks a human to review. Max 50 emails per poll.",
+        "height": 300,
+        "width": 460,
+        "color": 3
+      },
+      "id": "sticky-3",
+      "name": "Safety: never auto-posts",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -40,
+        -420
+      ]
+    },
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "simple": true,
+        "filters": {
+          "q": "from:noreply@example.com subject:review"
+        },
+        "options": {}
+      },
+      "id": "t-gmail",
+      "name": "Gmail Trigger",
+      "type": "n8n-nodes-base.gmailTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -900,
+        0
+      ],
+      "credentials": {
+        "gmailOAuth2": {
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "maxItems": 50
+      },
+      "id": "cap",
+      "name": "Cap 50 per run",
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        -640,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "language": "javaScript",
+        "jsCode": "const t = ($json.snippet || $json.text || '');\nconst m = t.match(/(\\d)\\s*-?\\s*stars?/i) || t.match(/(\\d)\\s*\\/\\s*5/);\nconst stars = m ? Number(m[1]) : 0;\nreturn { json: { review_text: t.slice(0, 1500), stars } };"
+      },
+      "id": "parse",
+      "name": "Parse stars",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -380,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ $json.stars }}",
+              "rightValue": 1,
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              }
+            },
+            {
+              "id": "c2",
+              "leftValue": "={{ $json.stars }}",
+              "rightValue": 3,
+              "operator": {
+                "type": "number",
+                "operation": "lte"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "low",
+      "name": "Stars 3 or less?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -120,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Review ({{ $json.stars }} stars): {{ $json.review_text }}",
+        "hasOutputParser": false,
+        "messages": {
+          "messageValues": [
+            {
+              "message": "You write short replies to unhappy customer reviews for a small business. Calm and kind. No excuses, no blame, no promises of refunds. Thank them, say sorry it fell short, invite them to contact owner@example.com or call +1 555 010 0000 to put it right. Max 70 words."
+            }
+          ]
+        }
+      },
+      "id": "draft",
+      "name": "Draft calm reply",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.5,
+      "position": [
+        140,
+        -20
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "id",
+          "value": "llama-3.3-70b-versatile"
+        },
+        "options": {
+          "temperature": 0.2
+        }
+      },
+      "id": "lm-19",
+      "name": "Groq chat model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        140,
+        220
+      ],
+      "credentials": {
+        "openAiApi": {
+          "name": "Groq (OpenAI-compatible)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "#approvals"
+        },
+        "text": "=Draft reply for a {{ $('Stars 3 or less?').item.json.stars }}-star review. Copy, edit, post by hand:\n\n{{ $json.text }}",
+        "otherOptions": {}
+      },
+      "id": "slack",
+      "name": "Post to #approvals (simulated)",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        480,
+        0
+      ],
+      "credentials": {
+        "slackApi": {
+          "name": "Slack account"
+        }
+      },
+      "disabled": true
+    }
+  ],
+  "connections": {
+    "Gmail Trigger": {
+      "main": [
+        [
+          {
+            "node": "Cap 50 per run",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cap 50 per run": {
+      "main": [
+        [
+          {
+            "node": "Parse stars",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse stars": {
+      "main": [
+        [
+          {
+            "node": "Stars 3 or less?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Draft calm reply": {
+      "main": [
+        [
+          {
+            "node": "Post to #approvals (simulated)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Stars 3 or less?": {
+      "main": [
+        [
+          {
+            "node": "Draft calm reply",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Groq chat model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Draft calm reply",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataSuccessExecution": "all"
+  },
+  "active": false
+}

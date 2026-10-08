@@ -1,0 +1,376 @@
+{
+  "name": "S10 WhatsApp order capture (simulated send)",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## What this does\n\nA customer sends a WhatsApp order in plain words. An AI extractor pulls out the SKU, quantity and customer. The stock sheet is checked. In stock: an order row is written and the customer gets a confirmation. Out of stock: your sales rep is told instead.",
+        "height": 300,
+        "width": 460,
+        "color": 4
+      },
+      "id": "sticky-1",
+      "name": "What this does",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -1100,
+        -420
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Setup in 4 steps\n\n1. Import and connect WhatsApp, Google Sheets, Groq and Slack credentials.\n2. Sheet tab 'stock' (sku, stock) and tab 'orders' (received_at, customer, sku, qty).\n3. Replace sheet ids and the WhatsApp phone number id.\n4. Message the test number once, then enable the send nodes.",
+        "height": 300,
+        "width": 460,
+        "color": 5
+      },
+      "id": "sticky-2",
+      "name": "Setup in 4 steps",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -620,
+        -420
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Safety: SIMULATED sends\n\nSIMULATED - enable after credentials. The WhatsApp confirmation and rep alert are disabled, so orders are written to the sheet only. One order per message, no loops. Quantity is read as a number and checked against stock.",
+        "height": 300,
+        "width": 460,
+        "color": 3
+      },
+      "id": "sticky-3",
+      "name": "Safety: SIMULATED sends",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -140,
+        -420
+      ]
+    },
+    {
+      "parameters": {
+        "updates": [
+          "messages"
+        ],
+        "options": {}
+      },
+      "id": "t-wa",
+      "name": "WhatsApp Trigger",
+      "type": "n8n-nodes-base.whatsAppTrigger",
+      "typeVersion": 1,
+      "position": [
+        -1000,
+        0
+      ],
+      "credentials": {
+        "whatsAppTriggerApi": {
+          "name": "WhatsApp trigger account"
+        }
+      },
+      "webhookId": "s10-wa-trigger"
+    },
+    {
+      "parameters": {
+        "text": "={{ $json.messages[0].text.body }}",
+        "schemaType": "fromAttributes",
+        "attributes": {
+          "attributes": [
+            {
+              "name": "sku",
+              "type": "string",
+              "description": "Product code the customer wants, e.g. SKU-1001",
+              "required": true
+            },
+            {
+              "name": "qty",
+              "type": "number",
+              "description": "Quantity wanted",
+              "required": true
+            },
+            {
+              "name": "customer",
+              "type": "string",
+              "description": "Customer name if given, else empty",
+              "required": false
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "extract",
+      "name": "Extract order",
+      "type": "@n8n/n8n-nodes-langchain.informationExtractor",
+      "typeVersion": 1.1,
+      "position": [
+        -740,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "id",
+          "value": "llama-3.3-70b-versatile"
+        },
+        "options": {
+          "temperature": 0.2
+        }
+      },
+      "id": "lm-21",
+      "name": "Groq chat model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        -740,
+        240
+      ],
+      "credentials": {
+        "openAiApi": {
+          "name": "Groq (OpenAI-compatible)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "REPLACE_ME"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "stock"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "sku",
+              "lookupValue": "={{ $json.output.sku }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "lookup",
+      "name": "Look up stock",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        -460,
+        0
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "name": "Google Sheets account"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "e1",
+              "leftValue": "={{ Number($json.stock || 0) }}",
+              "rightValue": "={{ $('Extract order').item.json.output.qty }}",
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "instock",
+      "name": "In stock?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -200,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "REPLACE_ME"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "orders"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "received_at": "={{ $now.toISO() }}",
+            "customer": "={{ $('Extract order').item.json.output.customer || 'unknown' }}",
+            "sku": "={{ $('Extract order').item.json.output.sku }}",
+            "qty": "={{ $('Extract order').item.json.output.qty }}"
+          },
+          "matchingColumns": [],
+          "schema": []
+        },
+        "options": {}
+      },
+      "id": "order",
+      "name": "Write order row",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        80,
+        -100
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "send",
+        "phoneNumberId": "REPLACE_ME",
+        "recipientPhoneNumber": "={{ $('WhatsApp Trigger').item.json.messages[0].from }}",
+        "textBody": "=Got it - {{ $('Extract order').item.json.output.qty }} x {{ $('Extract order').item.json.output.sku }} is reserved. We will confirm delivery shortly.",
+        "additionalFields": {}
+      },
+      "id": "confirm",
+      "name": "WhatsApp confirm (simulated)",
+      "type": "n8n-nodes-base.whatsApp",
+      "typeVersion": 1.1,
+      "position": [
+        360,
+        -100
+      ],
+      "credentials": {
+        "whatsAppApi": {
+          "name": "WhatsApp account"
+        }
+      },
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "#sales"
+        },
+        "text": "=Out of stock or unknown SKU: {{ $('Extract order').item.json.output.qty }} x {{ $('Extract order').item.json.output.sku }}. Please contact the customer.",
+        "otherOptions": {}
+      },
+      "id": "rep",
+      "name": "Tell the rep (simulated)",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        80,
+        120
+      ],
+      "credentials": {
+        "slackApi": {
+          "name": "Slack account"
+        }
+      },
+      "disabled": true
+    }
+  ],
+  "connections": {
+    "WhatsApp Trigger": {
+      "main": [
+        [
+          {
+            "node": "Extract order",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract order": {
+      "main": [
+        [
+          {
+            "node": "Look up stock",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look up stock": {
+      "main": [
+        [
+          {
+            "node": "In stock?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Write order row": {
+      "main": [
+        [
+          {
+            "node": "WhatsApp confirm (simulated)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "In stock?": {
+      "main": [
+        [
+          {
+            "node": "Write order row",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Tell the rep (simulated)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq chat model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Extract order",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataSuccessExecution": "all"
+  },
+  "active": false
+}

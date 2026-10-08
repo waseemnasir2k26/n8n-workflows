@@ -1,0 +1,436 @@
+{
+  "name": "S07 Maintenance request router (simulated send)",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## What this does\n\nA tenant message (email, or WhatsApp if you swap triggers) is read by an AI classifier: emergency (no heat, flood, gas smell) or routine. Emergencies text the on-call person. Everything is logged to a sheet and the tenant gets a short acknowledgement.",
+        "height": 300,
+        "width": 460,
+        "color": 4
+      },
+      "id": "sticky-1",
+      "name": "What this does",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -1100,
+        -420
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Setup in 4 steps\n\n1. Import and connect Gmail + Google Sheets + Groq credentials.\n2. Make a sheet tab 'requests' with columns: received_at, from, text, urgency.\n3. Set the sheet id and the on-call number (placeholder +1 555 010 0000).\n4. Test with one email, then enable the send nodes.",
+        "height": 300,
+        "width": 460,
+        "color": 5
+      },
+      "id": "sticky-2",
+      "name": "Setup in 4 steps",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -620,
+        -420
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Safety: SIMULATED sends\n\nSIMULATED - enable after credentials. The Twilio SMS and the tenant reply are disabled. Gmail Trigger is on; the WhatsApp Trigger is off - enable ONE trigger, not both. One message in, one row out; no loops.",
+        "height": 300,
+        "width": 460,
+        "color": 3
+      },
+      "id": "sticky-3",
+      "name": "Safety: SIMULATED sends",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -140,
+        -420
+      ]
+    },
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "simple": true,
+        "filters": {
+          "q": "label:maintenance"
+        },
+        "options": {}
+      },
+      "id": "t-gmail",
+      "name": "Gmail Trigger",
+      "type": "n8n-nodes-base.gmailTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -1000,
+        0
+      ],
+      "credentials": {
+        "gmailOAuth2": {
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "updates": [
+          "messages"
+        ],
+        "options": {}
+      },
+      "id": "t-wa",
+      "name": "WhatsApp Trigger",
+      "type": "n8n-nodes-base.whatsAppTrigger",
+      "typeVersion": 1,
+      "position": [
+        -1000,
+        220
+      ],
+      "credentials": {
+        "whatsAppTriggerApi": {
+          "name": "WhatsApp trigger account"
+        }
+      },
+      "disabled": true,
+      "webhookId": "s07-wa-trigger"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a1",
+              "name": "text",
+              "type": "string",
+              "value": "={{ $json.snippet || $json.messages?.[0]?.text?.body || '' }}"
+            },
+            {
+              "id": "a2",
+              "name": "from",
+              "type": "string",
+              "value": "={{ $json.From?.value?.[0]?.address || $json.messages?.[0]?.from || 'tenant@example.com' }}"
+            },
+            {
+              "id": "a3",
+              "name": "received_at",
+              "type": "string",
+              "value": "={{ $now.toISO() }}"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "set-text",
+      "name": "Normalise message",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -740,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "inputText": "={{ $json.text }}",
+        "categories": {
+          "categories": [
+            {
+              "category": "emergency",
+              "description": "Danger or damage in progress: flooding, burst pipe, gas smell, no heating in winter, electrical sparks, fire, lockout at night"
+            },
+            {
+              "category": "routine",
+              "description": "Everything else: dripping tap, light bulb, noise, cosmetic repair, general question"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "classify",
+      "name": "Emergency or routine?",
+      "type": "@n8n/n8n-nodes-langchain.textClassifier",
+      "typeVersion": 1.1,
+      "position": [
+        -480,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "id",
+          "value": "llama-3.3-70b-versatile"
+        },
+        "options": {
+          "temperature": 0.2
+        }
+      },
+      "id": "lm-18",
+      "name": "Groq chat model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        -480,
+        340
+      ],
+      "credentials": {
+        "openAiApi": {
+          "name": "Groq (OpenAI-compatible)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "b1",
+              "name": "urgency",
+              "type": "string",
+              "value": "emergency"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "tag-em",
+      "name": "Tag emergency",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -200,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "b2",
+              "name": "urgency",
+              "type": "string",
+              "value": "routine"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "tag-rt",
+      "name": "Tag routine",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -200,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "from": "+1 555 010 0000",
+        "to": "+1 555 010 0001",
+        "message": "=EMERGENCY maintenance request from {{ $json.from }}: {{ $json.text.slice(0,200) }}"
+      },
+      "id": "sms",
+      "name": "SMS on-call (simulated)",
+      "type": "n8n-nodes-base.twilio",
+      "typeVersion": 1,
+      "position": [
+        80,
+        0
+      ],
+      "credentials": {
+        "twilioApi": {
+          "name": "Twilio account"
+        }
+      },
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "REPLACE_ME"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "requests"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "received_at": "={{ $json.received_at }}",
+            "from": "={{ $json.from }}",
+            "text": "={{ $json.text }}",
+            "urgency": "={{ $json.urgency }}"
+          },
+          "matchingColumns": [],
+          "schema": []
+        },
+        "options": {}
+      },
+      "id": "log",
+      "name": "Log request",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        360,
+        100
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "reply",
+        "messageId": "={{ $('Gmail Trigger').item.json.id }}",
+        "message": "=Thanks - we have your request and logged it as {{ $json.urgency }}. {{ $json.urgency === 'emergency' ? 'The on-call person has been alerted.' : 'We will book a visit within 3 working days.' }}",
+        "options": {}
+      },
+      "id": "reply",
+      "name": "Reply to tenant (simulated)",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        640,
+        100
+      ],
+      "credentials": {
+        "gmailOAuth2": {
+          "name": "Gmail account"
+        }
+      },
+      "disabled": true
+    }
+  ],
+  "connections": {
+    "Gmail Trigger": {
+      "main": [
+        [
+          {
+            "node": "Normalise message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalise message": {
+      "main": [
+        [
+          {
+            "node": "Emergency or routine?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "WhatsApp Trigger": {
+      "main": [
+        [
+          {
+            "node": "Normalise message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tag emergency": {
+      "main": [
+        [
+          {
+            "node": "SMS on-call (simulated)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SMS on-call (simulated)": {
+      "main": [
+        [
+          {
+            "node": "Log request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log request": {
+      "main": [
+        [
+          {
+            "node": "Reply to tenant (simulated)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tag routine": {
+      "main": [
+        [
+          {
+            "node": "Log request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Emergency or routine?": {
+      "main": [
+        [
+          {
+            "node": "Tag emergency",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Tag routine",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq chat model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Emergency or routine?",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataSuccessExecution": "all"
+  },
+  "active": false
+}
