@@ -1,0 +1,410 @@
+{
+  "name": "CV shortlist assistant, scores only, human decides",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "SHORTLIST ASSISTANT\nA CV arrives by email as a PDF. The text is scored 0-100 against your job spec by an AI model (3 reasons each), logged to a sheet, and a Slack digest at 17:00 lists the top 5. For small recruiters and hiring managers.",
+        "height": 240,
+        "width": 380,
+        "color": 4
+      },
+      "id": "s16-sticky-What this does",
+      "name": "Note - What this does",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        0,
+        20
+      ]
+    },
+    {
+      "parameters": {
+        "content": "SETUP IN 4 STEPS\n1. Edit JOB_SPEC in 'Build scoring prompt'.\n2. Connect Gmail, Google Sheets, Slack and a Header Auth credential for Groq (Authorization: Bearer YOUR_KEY).\n3. Make a sheet tab 'Candidates' (received_at, from, score, reason_1..3).\n4. Send yourself 2 test CVs, check the scores, then activate.",
+        "height": 240,
+        "width": 380,
+        "color": 5
+      },
+      "id": "s16-sticky-Setup in 4 steps",
+      "name": "Note - Setup in 4 steps",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        420,
+        20
+      ]
+    },
+    {
+      "parameters": {
+        "content": "HUMAN DECIDES - NO AUTO-REJECT\nThis ranks, it never rejects or emails a candidate. Scores are a sort order, not a verdict. Cap: digest reads max 50 rows. Ships inactive. No real CVs in this repo.",
+        "height": 240,
+        "width": 380,
+        "color": 3
+      },
+      "id": "s16-sticky-Safety",
+      "name": "Note - Safety",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        840,
+        20
+      ]
+    },
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyX",
+              "value": 10,
+              "unit": "minutes"
+            }
+          ]
+        },
+        "simple": false,
+        "filters": {
+          "q": "has:attachment filename:pdf label:cv-inbox"
+        },
+        "options": {
+          "downloadAttachments": true
+        }
+      },
+      "id": "s16-gm",
+      "name": "CV email arrives",
+      "type": "n8n-nodes-base.gmailTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        320
+      ],
+      "credentials": {
+        "gmailOAuth2": {
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "pdf",
+        "binaryPropertyName": "attachment_0",
+        "options": {}
+      },
+      "id": "s16-ex",
+      "name": "Read PDF text",
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.1,
+      "position": [
+        260,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "language": "javaScript",
+        "jsCode": "const JOB_SPEC = 'Role: Junior accountant. Needs: bookkeeping, Xero, 1+ year experience, clear written English.';\nconst cv = String($json.text || '').slice(0, 6000);\nconst mail = $('CV email arrives').item.json;\nconst body = {\n  model: 'llama-3.1-8b-instant',\n  response_format: { type: 'json_object' },\n  messages: [\n    { role: 'system', content: 'You help a human shortlist CVs. Reply JSON only: {\"score\": 0-100, \"reasons\": [\"r1\",\"r2\",\"r3\"]}. Judge only fit to the job spec. Never mention age, gender, name origin or nationality.' },\n    { role: 'user', content: 'JOB SPEC: ' + JOB_SPEC + '\\n\\nCV TEXT:\\n' + cv }\n  ]\n};\nreturn { json: { body, from: (mail.from && mail.from.text) || '', received_at: new Date().toISOString() } };"
+      },
+      "id": "s16-pr",
+      "name": "Build scoring prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        520,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.groq.com/openai/v1/chat/completions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.body) }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "s16-llm",
+      "name": "Score with LLM (Groq, OpenAI-compatible)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        780,
+        320
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "name": "Groq API key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "language": "javaScript",
+        "jsCode": "let r = { score: 0, reasons: ['unparsed - read the CV yourself'] };\ntry { r = JSON.parse($json.choices[0].message.content); } catch (e) {}\nconst prev = $('Build scoring prompt').item.json;\nconst rs = Array.isArray(r.reasons) ? r.reasons : [];\nreturn { json: { received_at: prev.received_at, from: prev.from, score: Math.max(0, Math.min(100, Number(r.score) || 0)), reason_1: rs[0] || '', reason_2: rs[1] || '', reason_3: rs[2] || '' } };"
+      },
+      "id": "s16-pa",
+      "name": "Parse score",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1040,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "REPLACE_ME_SHEET_ID"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Candidates"
+        },
+        "operation": "append",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "received_at": "={{ $json.received_at }}",
+            "from": "={{ $json.from }}",
+            "score": "={{ $json.score }}",
+            "reason_1": "={{ $json.reason_1 }}",
+            "reason_2": "={{ $json.reason_2 }}",
+            "reason_3": "={{ $json.reason_3 }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "s16-ap",
+      "name": "Log to Candidates sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        1300,
+        320
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 17 * * *"
+            }
+          ]
+        }
+      },
+      "id": "s16-dg",
+      "name": "Daily 17:00",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        620
+      ]
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "REPLACE_ME_SHEET_ID"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Candidates"
+        },
+        "operation": "read",
+        "options": {}
+      },
+      "id": "s16-rd",
+      "name": "Read Candidates",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        260,
+        620
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "maxItems": 50
+      },
+      "id": "s16-lm",
+      "name": "Cap 50 rows",
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        520,
+        620
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const rows = $input.all().map(i => i.json).sort((a, b) => Number(b.score) - Number(a.score)).slice(0, 5);\nconst lines = rows.map((r, n) => (n + 1) + '. ' + r.from + ' - ' + r.score + '/100 - ' + r.reason_1);\nreturn [{ json: { text: 'Shortlist assistant - top 5 (a human decides):\\n' + lines.join('\\n') } }];"
+      },
+      "id": "s16-t5",
+      "name": "Top 5 digest text",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        780,
+        620
+      ]
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "#hiring"
+        },
+        "text": "={{ $json.text }}",
+        "otherOptions": {}
+      },
+      "id": "s16-sl",
+      "name": "Slack top-5 digest",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        1040,
+        620
+      ],
+      "credentials": {
+        "slackApi": {
+          "name": "Slack account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "CV email arrives": {
+      "main": [
+        [
+          {
+            "node": "Read PDF text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read PDF text": {
+      "main": [
+        [
+          {
+            "node": "Build scoring prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build scoring prompt": {
+      "main": [
+        [
+          {
+            "node": "Score with LLM (Groq, OpenAI-compatible)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Score with LLM (Groq, OpenAI-compatible)": {
+      "main": [
+        [
+          {
+            "node": "Parse score",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse score": {
+      "main": [
+        [
+          {
+            "node": "Log to Candidates sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Daily 17:00": {
+      "main": [
+        [
+          {
+            "node": "Read Candidates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Candidates": {
+      "main": [
+        [
+          {
+            "node": "Cap 50 rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cap 50 rows": {
+      "main": [
+        [
+          {
+            "node": "Top 5 digest text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Top 5 digest text": {
+      "main": [
+        [
+          {
+            "node": "Slack top-5 digest",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataSuccessExecution": "all"
+  },
+  "active": false
+}

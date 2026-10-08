@@ -1,0 +1,506 @@
+{
+  "name": "Client document reminders, Monday and Thursday (simulated send)",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "WHAT THIS DOES\nMonday 09:00 it reads your client tracker and sends a friendly reminder to every client whose document is still missing. Thursday it sends a firmer one to those still missing and already reminded. Writes reminded_at back to the sheet.\nFor accountants and bookkeepers chasing paperwork.",
+        "height": 240,
+        "width": 380,
+        "color": 4
+      },
+      "id": "s15-sticky-What this does",
+      "name": "Note - What this does",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        0,
+        20
+      ]
+    },
+    {
+      "parameters": {
+        "content": "SETUP IN 4 STEPS\n1. Make a Google Sheet tab 'Clients' with columns client_name, client_email, document, doc_received (yes/no), reminded_at.\n2. Pick that sheet in all four Sheets nodes (REPLACE_ME_SHEET_ID).\n3. Connect Gmail and Google Sheets credentials.\n4. Test with your own address in the sheet, then enable both Gmail nodes.",
+        "height": 240,
+        "width": 380,
+        "color": 5
+      },
+      "id": "s15-sticky-Setup in 4 steps",
+      "name": "Note - Setup in 4 steps",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        420,
+        20
+      ]
+    },
+    {
+      "parameters": {
+        "content": "SIMULATED - enable after credentials\nBoth Gmail send nodes are DISABLED. Cap: max 50 clients per run per branch (Limit nodes). Workflow ships inactive.",
+        "height": 240,
+        "width": 380,
+        "color": 3
+      },
+      "id": "s15-sticky-Safety",
+      "name": "Note - Safety",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        840,
+        20
+      ]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 9 * * 1"
+            }
+          ]
+        }
+      },
+      "id": "s15-mon",
+      "name": "Monday 09:00",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "REPLACE_ME_SHEET_ID"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Clients"
+        },
+        "operation": "read",
+        "options": {}
+      },
+      "id": "s15-rd1",
+      "name": "Read client tracker",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        260,
+        320
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "maxItems": 50
+      },
+      "id": "s15-lim1",
+      "name": "Cap 50 per run",
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        520,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "e72be511-2b17-439c-ada8-5f2c97a81aec",
+              "leftValue": "={{ String($json.doc_received).toLowerCase() }}",
+              "rightValue": "no",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "id": "s15-if1",
+      "name": "Document missing?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        780,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "send",
+        "sendTo": "={{ $json.client_email }}",
+        "subject": "Quick reminder: one document to go",
+        "emailType": "text",
+        "message": "=Hi {{ $json.client_name }},\n\nJust a friendly nudge - we still need your {{ $json.document }} to finish your file. A photo or PDF reply to this email is fine.\n\nThanks!\nSkyline Bookkeeping (demo)",
+        "options": {}
+      },
+      "id": "s15-g1",
+      "name": "Friendly reminder (simulated)",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        1040,
+        240
+      ],
+      "credentials": {
+        "gmailOAuth2": {
+          "name": "Gmail account"
+        }
+      },
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "REPLACE_ME_SHEET_ID"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Clients"
+        },
+        "operation": "update",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "client_email": "={{ $json.client_email }}",
+            "reminded_at": "={{ $now.toISO() }}"
+          },
+          "matchingColumns": [
+            "client_email"
+          ],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "s15-u1",
+      "name": "Write reminded_at",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        1300,
+        240
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 9 * * 4"
+            }
+          ]
+        }
+      },
+      "id": "s15-thu",
+      "name": "Thursday 09:00",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        620
+      ]
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "REPLACE_ME_SHEET_ID"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Clients"
+        },
+        "operation": "read",
+        "options": {}
+      },
+      "id": "s15-rd2",
+      "name": "Read client tracker again",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        260,
+        620
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "maxItems": 50
+      },
+      "id": "s15-lim2",
+      "name": "Cap 50 per run (Thu)",
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        520,
+        620
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "0d4a0820-559a-4673-8e8a-938c7c537e29",
+              "leftValue": "={{ String($json.doc_received).toLowerCase() }}",
+              "rightValue": "no",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "c2",
+              "leftValue": "={{ $json.reminded_at }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "id": "s15-if2",
+      "name": "Still missing and already reminded?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        780,
+        620
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "send",
+        "sendTo": "={{ $json.client_email }}",
+        "subject": "=Still needed: {{ $json.document }}",
+        "emailType": "text",
+        "message": "=Hi {{ $json.client_name }},\n\nWe reminded you on Monday and still do not have your {{ $json.document }}. Without it we cannot file on time. Please send it by end of day tomorrow.\n\nThank you,\nSkyline Bookkeeping (demo)",
+        "options": {}
+      },
+      "id": "s15-g2",
+      "name": "Firmer reminder (simulated)",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        1040,
+        540
+      ],
+      "credentials": {
+        "gmailOAuth2": {
+          "name": "Gmail account"
+        }
+      },
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "REPLACE_ME_SHEET_ID"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Clients"
+        },
+        "operation": "update",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "client_email": "={{ $json.client_email }}",
+            "reminded_at": "={{ $now.toISO() }}"
+          },
+          "matchingColumns": [
+            "client_email"
+          ],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "s15-u2",
+      "name": "Write reminded_at (Thu)",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        1300,
+        540
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "name": "Google Sheets account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Monday 09:00": {
+      "main": [
+        [
+          {
+            "node": "Read client tracker",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read client tracker": {
+      "main": [
+        [
+          {
+            "node": "Cap 50 per run",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cap 50 per run": {
+      "main": [
+        [
+          {
+            "node": "Document missing?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Document missing?": {
+      "main": [
+        [
+          {
+            "node": "Friendly reminder (simulated)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Friendly reminder (simulated)": {
+      "main": [
+        [
+          {
+            "node": "Write reminded_at",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Thursday 09:00": {
+      "main": [
+        [
+          {
+            "node": "Read client tracker again",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read client tracker again": {
+      "main": [
+        [
+          {
+            "node": "Cap 50 per run (Thu)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cap 50 per run (Thu)": {
+      "main": [
+        [
+          {
+            "node": "Still missing and already reminded?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Still missing and already reminded?": {
+      "main": [
+        [
+          {
+            "node": "Firmer reminder (simulated)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Firmer reminder (simulated)": {
+      "main": [
+        [
+          {
+            "node": "Write reminded_at (Thu)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataSuccessExecution": "all"
+  },
+  "active": false
+}

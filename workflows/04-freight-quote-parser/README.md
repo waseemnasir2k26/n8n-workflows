@@ -2,6 +2,8 @@
 
 `04 Freight Quote Parser (Claude -> table + draft reply)` — 16 nodes (13 working nodes + 3 sticky notes).
 
+**Short:** (link TBD)
+
 A freight forwarder gets quote requests by email and someone retypes each one. This workflow
 reads inbound email inquiries, extracts shipment details using the Claude API (ports, weights,
 dimensions, cargo type, incoterm, deadline) with a fixed JSON schema, writes one row per email into

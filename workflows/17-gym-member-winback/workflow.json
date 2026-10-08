@@ -1,0 +1,260 @@
+{
+  "name": "Gym member win-back text, 14 days quiet (simulated send)",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "WHAT THIS DOES\nEvery night it reads your check-in sheet, finds members who have not been in for more than 14 days, texts them a friendly come-back message, and tells the coach in Slack.\nFor gym and studio owners losing members quietly.",
+        "height": 240,
+        "width": 380,
+        "color": 4
+      },
+      "id": "s17-sticky-What this does",
+      "name": "Note - What this does",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        0,
+        20
+      ]
+    },
+    {
+      "parameters": {
+        "content": "SETUP IN 4 STEPS\n1. Make a sheet tab 'Members' with name, phone, last_checkin (date), coach.\n2. Pick it in 'Read check-ins' (REPLACE_ME_SHEET_ID).\n3. Connect Google Sheets, Twilio and Slack credentials; set the From number.\n4. Test with your own phone number only, then enable the Twilio node.",
+        "height": 240,
+        "width": 380,
+        "color": 5
+      },
+      "id": "s17-sticky-Setup in 4 steps",
+      "name": "Note - Setup in 4 steps",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        420,
+        20
+      ]
+    },
+    {
+      "parameters": {
+        "content": "SIMULATED - enable after credentials\nThe Twilio send node is DISABLED by default. Cap: max 50 members per night (Limit node). Check SMS consent rules in your country first. Ships inactive.",
+        "height": 240,
+        "width": 380,
+        "color": 3
+      },
+      "id": "s17-sticky-Safety",
+      "name": "Note - Safety",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        840,
+        20
+      ]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 20 * * *"
+            }
+          ]
+        }
+      },
+      "id": "s17-nt",
+      "name": "Nightly 20:00",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "REPLACE_ME_SHEET_ID"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Members"
+        },
+        "operation": "read",
+        "options": {}
+      },
+      "id": "s17-rd",
+      "name": "Read check-ins",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        260,
+        320
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "maxItems": 50
+      },
+      "id": "s17-lm",
+      "name": "Cap 50 per night",
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        520,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "38c29626-2610-4d0c-bf38-f44bb619cc35",
+              "leftValue": "={{ ($now.toMillis() - new Date($json.last_checkin).getTime()) / 86400000 }}",
+              "rightValue": 14,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "id": "s17-if",
+      "name": "Quiet more than 14 days?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        780,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "sms",
+        "operation": "send",
+        "from": "+1 555 010 0000",
+        "to": "={{ $json.phone }}",
+        "toWhatsapp": false,
+        "message": "=Hi {{ $json.name }}, we have missed you at Iron Works Gym (demo). Come in this week and your coach will walk you through a fresh plan. Reply STOP to opt out."
+      },
+      "id": "s17-sms",
+      "name": "Win-back SMS (simulated)",
+      "type": "n8n-nodes-base.twilio",
+      "typeVersion": 1,
+      "position": [
+        1040,
+        240
+      ],
+      "credentials": {
+        "twilioApi": {
+          "name": "Twilio account"
+        }
+      },
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "#coaches"
+        },
+        "text": "=Win-back text queued for {{ $json.name }} (coach: {{ $json.coach }}). Last check-in: {{ $json.last_checkin }}.",
+        "otherOptions": {}
+      },
+      "id": "s17-sl",
+      "name": "Tell the coach",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        1300,
+        240
+      ],
+      "credentials": {
+        "slackApi": {
+          "name": "Slack account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Nightly 20:00": {
+      "main": [
+        [
+          {
+            "node": "Read check-ins",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read check-ins": {
+      "main": [
+        [
+          {
+            "node": "Cap 50 per night",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cap 50 per night": {
+      "main": [
+        [
+          {
+            "node": "Quiet more than 14 days?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Quiet more than 14 days?": {
+      "main": [
+        [
+          {
+            "node": "Win-back SMS (simulated)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Win-back SMS (simulated)": {
+      "main": [
+        [
+          {
+            "node": "Tell the coach",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataSuccessExecution": "all"
+  },
+  "active": false
+}

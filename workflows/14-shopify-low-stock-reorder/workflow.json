@@ -1,0 +1,281 @@
+{
+  "name": "Shopify low stock to supplier reorder email (simulated send)",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "WHAT THIS DOES\nEvery morning at 07:00 it reads your Shopify products, finds any variant with fewer than 20 units, and writes a purchase-order email to your supplier plus a heads-up to you.\nFor store owners who find out about stock-outs from a customer.",
+        "height": 240,
+        "width": 380,
+        "color": 4
+      },
+      "id": "s14-sticky-What this does",
+      "name": "Note - What this does",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        0,
+        20
+      ]
+    },
+    {
+      "parameters": {
+        "content": "SETUP IN 4 STEPS\n1. Create Shopify and Gmail credentials (names in the README).\n2. Set the supplier and owner addresses in the two Gmail nodes.\n3. Change the threshold in 'Under 20 units?' if you want.\n4. Run once by hand, read the drafts, then enable the two Gmail nodes.",
+        "height": 240,
+        "width": 380,
+        "color": 5
+      },
+      "id": "s14-sticky-Setup in 4 steps",
+      "name": "Note - Setup in 4 steps",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        420,
+        20
+      ]
+    },
+    {
+      "parameters": {
+        "content": "SIMULATED - enable after credentials\nBoth Gmail send nodes are DISABLED. Cap: max 50 variants per run (Limit node). Workflow ships inactive.",
+        "height": 240,
+        "width": 380,
+        "color": 3
+      },
+      "id": "s14-sticky-Safety",
+      "name": "Note - Safety",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        840,
+        20
+      ]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 7 * * *"
+            }
+          ]
+        }
+      },
+      "id": "s14-sched",
+      "name": "Every morning 07:00",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "authentication": "accessToken",
+        "resource": "product",
+        "operation": "getAll",
+        "returnAll": false,
+        "limit": 250,
+        "options": {}
+      },
+      "id": "s14-shop",
+      "name": "Get Shopify products",
+      "type": "n8n-nodes-base.shopify",
+      "typeVersion": 1,
+      "position": [
+        260,
+        320
+      ],
+      "credentials": {
+        "shopifyAccessTokenApi": {
+          "name": "Shopify access token"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const out = [];\nfor (const item of $input.all()) {\n  const p = item.json;\n  for (const v of (p.variants || [])) {\n    out.push({ json: { product: p.title, sku: v.sku || '', variant: v.title || '', units: Number(v.inventory_quantity) || 0 } });\n  }\n}\nreturn out;"
+      },
+      "id": "s14-flat",
+      "name": "One row per variant",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        520,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "maxItems": 50
+      },
+      "id": "s14-lim",
+      "name": "Cap 50 per run",
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        780,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "7438aad3-13db-424b-be82-5b49de108f8b",
+              "leftValue": "={{ $json.units }}",
+              "rightValue": 20,
+              "operator": {
+                "type": "number",
+                "operation": "lt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "id": "s14-if",
+      "name": "Under 20 units?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1040,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "send",
+        "sendTo": "supplier@example.com",
+        "subject": "=Reorder request: {{ $json.product }} ({{ $json.sku }})",
+        "emailType": "text",
+        "message": "=Hi,\n\nWe are down to {{ $json.units }} units of {{ $json.product }} ({{ $json.variant }}, SKU {{ $json.sku }}).\nPlease send a quote and lead time for 100 units.\n\nThanks,\nOwner (demo store)",
+        "options": {}
+      },
+      "id": "s14-po",
+      "name": "Email supplier PO (simulated)",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        1300,
+        240
+      ],
+      "credentials": {
+        "gmailOAuth2": {
+          "name": "Gmail account"
+        }
+      },
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "send",
+        "sendTo": "owner@example.com",
+        "subject": "=Low stock: {{ $json.product }} ({{ $json.units }} left)",
+        "emailType": "text",
+        "message": "=Reorder email drafted for {{ $json.product }} / SKU {{ $json.sku }}. Units left: {{ $json.units }}.",
+        "options": {}
+      },
+      "id": "s14-note",
+      "name": "Heads-up to owner (simulated)",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        1560,
+        240
+      ],
+      "credentials": {
+        "gmailOAuth2": {
+          "name": "Gmail account"
+        }
+      },
+      "disabled": true
+    }
+  ],
+  "connections": {
+    "Every morning 07:00": {
+      "main": [
+        [
+          {
+            "node": "Get Shopify products",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Shopify products": {
+      "main": [
+        [
+          {
+            "node": "One row per variant",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "One row per variant": {
+      "main": [
+        [
+          {
+            "node": "Cap 50 per run",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cap 50 per run": {
+      "main": [
+        [
+          {
+            "node": "Under 20 units?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Under 20 units?": {
+      "main": [
+        [
+          {
+            "node": "Email supplier PO (simulated)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email supplier PO (simulated)": {
+      "main": [
+        [
+          {
+            "node": "Heads-up to owner (simulated)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataSuccessExecution": "all"
+  },
+  "active": false
+}

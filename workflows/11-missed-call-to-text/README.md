@@ -2,6 +2,8 @@
 
 `EP11 Missed call -> text back, already written (simulated send, 4 nodes)` — **4 nodes**.
 
+**Short:** (link TBD)
+
 A contractor is up a ladder. The phone rings out. Within about a minute the caller gets a text — _"sorry
 we missed your call, want me to book you in?"_ — and the call is written into a table as a job that still
 needs a callback, so it cannot be forgotten by the time the van gets back.
